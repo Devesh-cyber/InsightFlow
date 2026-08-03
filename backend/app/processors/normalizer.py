@@ -12,7 +12,7 @@ def normalize_missing_values(dataframe: pd.DataFrame) -> pd.DataFrame:
 def normalize_column_names(dataframe: pd.DataFrame) -> pd.DataFrame:
     ''' Cleans and Standardize column names '''
 
-    dataframe.columns = (dataframe.columns.str.strip().str.lower().replace(' ','_'))
+    dataframe.columns = (dataframe.columns.str.strip().str.lower().str.replace(' ','_'))
     return dataframe
 
 def normalize_dataset(dataframe: pd.DataFrame) -> pd.DataFrame:

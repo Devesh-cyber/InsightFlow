@@ -51,7 +51,7 @@ def validate_file_size(file: UploadFile) -> bool:
 
 def validate_dataset(file: UploadFile) -> bool:
     ''' Runs all dataset validation checks '''
-
+    
     validate_filename(file)
     validate_extension(file)
     validate_file_size(file)

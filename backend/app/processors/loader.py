@@ -34,11 +34,12 @@ def load_dataset(file: UploadFile) -> pd.DataFrame:
     extension = Path(file.filename).suffix.lower()
 
     if extension == '.csv':
-        load_csv(file)
+        return load_csv(file)
 
     if extension == '.xlsx':
-        load_excel(file)
+        return load_excel(file)
 
+    
     raise HTTPException(
         status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
         detail="Unsupported file format."
