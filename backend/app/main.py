@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from app.api.upload import router as upload_router
 from app.api.overview import router as overview_router
 from app.api.health import router as health_router
-
+from app.api.columns import router as column_router
 
 app = FastAPI(
     title='InsightFlow API',
@@ -13,6 +13,8 @@ app = FastAPI(
 app.include_router(upload_router)
 app.include_router(overview_router)
 app.include_router(health_router)
+app.include_router(column_router)
+
 
 @app.get('/')
 def root():
