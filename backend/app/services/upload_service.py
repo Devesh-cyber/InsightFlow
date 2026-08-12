@@ -9,7 +9,7 @@ def upload_dataset(file: UploadFile) -> UploadResponse:
 
     return UploadResponse(
         status='success',
-        message='Dataset uploadd successfully',
+        message='Dataset uploaded successfully',
         dataset_id=session.dataset_id,
         filename=session.filename,
         rows=session.metadata.rows,

@@ -1,37 +1,21 @@
-import pandas as pd
 from typing import Any
 
+import pandas as pd
+
 from app.models.column import (
-    ColumnSummary,
     ColumnAnalysis,
-    NumericStatistics
+    ColumnSummary,
+    NumericStatistics,
 )
+from app.processors.type_detector import detect_column_type
 
 
-def detect_column_type(series: pd.Series) -> str:
-    '''
-    Detect the logical analytical type of a colum
-    '''
-
-    if pd.api.types.is_bool_dtype(series):
-        return 'boolean'
-
-    if pd.api.types.is_numeric_dtype(series):
-        return 'numeric'
-
-    if pd.api.types.is_datetime64_any_dtype(series):
-        return 'datetime'
-
-    if pd.api.types.is_object_dtype(series) or pd.api.types.is_categorical_dtype(series):
-        return 'categorical'
-
-    return 'unknown'
-
-
-def calculate_missing_percentage(series: pd.Series) -> float:
-    '''
-    Calculate the percantage of missing values in a column
-    '''
+def calculate_missing_percentage(
+    series: pd.Series,
+) -> float:
+    """
+    Calculate the percentage of missing values in a column.
+    """
 
     if len(series) == 0:
         return 0.0
@@ -39,18 +23,23 @@ def calculate_missing_percentage(series: pd.Series) -> float:
     missing_count = series.isna().sum()
 
     return round(
-        (missing_count / len(series)) * 100, 
-        2
+        (missing_count / len(series)) * 100,
+        2,
     )
 
 
 def generate_column_summary(
-        dataframe: pd.DataFrame,
-        column_name: str
+    dataframe: pd.DataFrame,
+    column_name: str,
 ) -> ColumnSummary:
-    '''
-    Generates a lightweight summary for a single column
-    '''
+    """
+    Generate a lightweight summary for a single column.
+    """
+
+    if column_name not in dataframe.columns:
+        raise ValueError(
+            f"Column '{column_name}' does not exist."
+        )
 
     series = dataframe[column_name]
 
@@ -60,7 +49,7 @@ def generate_column_summary(
         pandas_dtype=str(series.dtype),
         missing_count=int(series.isna().sum()),
         missing_percentage=calculate_missing_percentage(series),
-        unique_count=int(series.nunique(dropna=True))
+        unique_count=int(series.nunique(dropna=True)),
     )
 
 
@@ -87,12 +76,12 @@ def calculate_numeric_statistics(
 
 
 def generate_sample_values(
-        series: pd.Series,
-        limit: int = 10
+    series: pd.Series,
+    limit: int = 10,
 ) -> list[Any]:
-    '''
-    Returns a sample of non-missing values from a column
-    '''
+    """
+    Return a sample of non-missing values from a column.
+    """
 
     values = series.dropna().head(limit)
 
@@ -100,28 +89,28 @@ def generate_sample_values(
 
 
 def analyze_column(
-        dataframe: pd.DataFrame,
-        column_name: str
+    dataframe: pd.DataFrame,
+    column_name: str,
 ) -> ColumnAnalysis:
-    '''
-    Performs detailed analysis of a selected column
-    '''
+    """
+    Perform detailed analysis of a selected column.
+    """
 
     if column_name not in dataframe.columns:
         raise ValueError(
-            f"Column '{column_name}' does not exist"
+            f"Column '{column_name}' does not exist."
         )
 
     series = dataframe[column_name]
 
     summary = generate_column_summary(
         dataframe=dataframe,
-        column_name=column_name
+        column_name=column_name,
     )
 
     statistics = None
 
-    if summary.detected_type == 'numeric':
+    if summary.detected_type == "numeric":
         statistics = calculate_numeric_statistics(series)
 
     sample_values = generate_sample_values(series)
@@ -129,26 +118,26 @@ def analyze_column(
     return ColumnAnalysis(
         summary=summary,
         statistics=statistics,
-        sample_values=sample_values
+        sample_values=sample_values,
     )
 
 
 def generate_column_summaries(
-    dataframe: pd.DataFrame
+    dataframe: pd.DataFrame,
 ) -> list[ColumnSummary]:
     """
-    Generates a lightweight summary for every column
+    Generate a lightweight summary for every column
     in the dataset.
     """
 
     summaries = []
 
     for column_name in dataframe.columns:
-        summary = generate_column_summary(
-            dataframe=dataframe,
-            column_name=column_name
+        summaries.append(
+            generate_column_summary(
+                dataframe=dataframe,
+                column_name=column_name,
+            )
         )
-
-        summaries.append(summary)
 
     return summaries

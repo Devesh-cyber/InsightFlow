@@ -1,64 +1,101 @@
 import pandas as pd
-import numpy as np
-from app.models.dataset import DatasetMetadata
 
-def calculate_shape(dataframe : pd.DataFrame) -> tuple[int, int]:
-    ''' Returns the shape of the dataframe '''
+from app.models.dataset import DatasetMetadata
+from app.processors.type_detector import detect_column_type
+
+
+def calculate_shape(
+    dataframe: pd.DataFrame,
+) -> tuple[int, int]:
+    """
+    Return the shape of the DataFrame.
+    """
 
     return dataframe.shape
 
-def calculate_memory_usage(dataframe : pd.DataFrame) -> float:
-    ''' Returns the memory size of dataframe in MB '''
 
-    memory = dataframe.memory_usage(deep=True).sum()
+def calculate_memory_usage(
+    dataframe: pd.DataFrame,
+) -> float:
+    """
+    Return the DataFrame memory usage in MB.
+    """
 
-    return round(memory / (1024 * 1024), 2)
+    memory = dataframe.memory_usage(
+        deep=True
+    ).sum()
 
-def count_missing_cells(dataframe: pd.DataFrame) -> int:
-    ''' Returns the number of missing cells in dataframe '''
+    return round(
+        memory / (1024 * 1024),
+        2,
+    )
 
-    return int(dataframe.isna().sum().sum())
 
-def count_duplicate_rows(dataframe : pd.DataFrame) -> int:
-    ''' Returns the number of duplicate rows '''
+def count_missing_cells(
+    dataframe: pd.DataFrame,
+) -> int:
+    """
+    Return the number of missing cells in the DataFrame.
+    """
 
-    return int(dataframe.duplicated().sum())
+    return int(
+        dataframe.isna().sum().sum()
+    )
 
-def detect_column_types(dataframe: pd.DataFrame) -> dict[str, int]:
-    '''Return the distribution of column types '''
+
+def count_duplicate_rows(
+    dataframe: pd.DataFrame,
+) -> int:
+    """
+    Return the number of duplicate rows.
+    """
+
+    return int(
+        dataframe.duplicated().sum()
+    )
+
+
+def detect_column_types(
+    dataframe: pd.DataFrame,
+) -> dict[str, int]:
+    """
+    Return the distribution of detected analytical column types.
+    """
 
     column_types = {
-        'numeric' : 0,
-        'categorical' : 0,
-        'datetime' : 0,
-        'boolean' : 0
+        "numeric": 0,
+        "categorical": 0,
+        "datetime": 0,
+        "boolean": 0,
+        "unknown": 0,
     }
 
-    for dtype in dataframe.dtypes:
-        if pd.api.types.is_numeric_dtype(dtype):
-            column_types['numeric'] += 1
-        elif pd.api.types.is_datetime64_any_dtype(dtype):
-            column_types['datetime'] += 1
-        elif pd.api.types.is_bool_dtype(dtype):
-            column_types['boolean'] += 1
-        else:
-            column_types['categorical'] += 1
+    for column in dataframe.columns:
+        detected_type = detect_column_type(
+            dataframe[column]
+        )
+
+        column_types[detected_type] += 1
 
     return column_types
 
-def generate_metadata(dataframe: pd.DataFrame, filename: str) -> DatasetMetadata:
-    ''' Generate metadata for the uploaded dataset '''
+
+def generate_metadata(
+    dataframe: pd.DataFrame,
+    filename: str,
+) -> DatasetMetadata:
+    """
+    Generate metadata for the dataset.
+    """
 
     rows, columns = calculate_shape(dataframe)
 
-    metadata = DatasetMetadata(
+    return DatasetMetadata(
         dataset_name=filename,
         rows=rows,
         columns=columns,
         memory_usage=calculate_memory_usage(dataframe),
         missing_cells=count_missing_cells(dataframe),
         duplicate_rows=count_duplicate_rows(dataframe),
-        column_types=detect_column_types(dataframe)
+        column_types=detect_column_types(dataframe),
     )
-
-    return metadata

@@ -13,7 +13,7 @@ router = APIRouter(
     response_model=UploadResponse,
     summary='Upload Dataset'
 )
-async def uplaod(file: UploadFile = File(...)) -> UploadResponse:
+async def upload(file: UploadFile = File(...)) -> UploadResponse:
     ''' upload and process a dataset'''
 
     return upload_dataset(file)

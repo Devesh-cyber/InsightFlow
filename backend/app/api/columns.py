@@ -1,51 +1,52 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from app.models.column import (
     ColumnAnalysis,
-    ColumnSummary
+    ColumnSummary,
 )
 
 from app.services.column_service import (
     get_column_analysis,
-    get_column_summaries
+    get_column_summaries,
 )
 
+
 router = APIRouter(
-    prefix='/columns',
-    tags=['Column Analysis']
+    prefix="/columns",
+    tags=["Column Analysis"],
 )
 
 
 @router.get(
-    '/{dataset_id}/diagnosis',
+    "/{dataset_id}/diagnosis",
     response_model=list[ColumnSummary],
-    summary='Get Column Summaries'
+    summary="Get Column Summaries",
 )
-def get_columns(
-    dataset_id: str
+async def get_columns(
+    dataset_id: str,
 ) -> list[ColumnSummary]:
-    '''
+    """
     Returns a lightweight summary of all columns
-    in the selected dataset
-    '''
+    in the selected dataset.
+    """
 
     return get_column_summaries(dataset_id)
 
 
 @router.get(
-    '/{dataset_id}/{column_name}',
+    "/{dataset_id}/analysis",
     response_model=ColumnAnalysis,
-    summary='Get Column Analysis'
+    summary="Get Column Analysis",
 )
-def get_column(
+async def get_column(
     dataset_id: str,
-    column_name: str
+    column_name: str = Query(...),
 ) -> ColumnAnalysis:
-    '''
-    Returns detailed analysis for a selected column
-    '''
+    """
+    Returns detailed analysis for a selected column.
+    """
 
     return get_column_analysis(
         dataset_id=dataset_id,
-        column_name=column_name
+        column_name=column_name,
     )

@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from app.models.column import ColumnSummary
 from app.models.relationship import RelationshipResult
@@ -11,17 +11,17 @@ from app.services.relationship_service import (
 
 router = APIRouter(
     prefix="/relationships",
-    tags=["Relationship Analysis"]
+    tags=["Relationship Analysis"],
 )
 
 
 @router.get(
     "/{dataset_id}/columns",
     response_model=list[ColumnSummary],
-    summary="Get Relationship Columns"
+    summary="Get Relationship Columns",
 )
 async def get_columns(
-    dataset_id: str
+    dataset_id: str,
 ) -> list[ColumnSummary]:
     """
     Returns the columns available for relationship analysis.
@@ -31,17 +31,17 @@ async def get_columns(
 
 
 @router.get(
-    "/{dataset_id}/{column_a}/{column_b}",
+    "/{dataset_id}/analysis",
     response_model=RelationshipResult,
-    summary="Analyze Column Relationship"
+    summary="Analyze Column Relationship",
 )
 async def analyze_columns(
     dataset_id: str,
-    column_a: str,
-    column_b: str,
+    column_a: str = Query(...),
+    column_b: str = Query(...),
 ) -> RelationshipResult:
     """
-    Analyzes the relationship between two selected columns.
+    Analyze the relationship between two selected columns.
     """
 
     return get_relationship(

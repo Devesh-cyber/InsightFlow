@@ -1,12 +1,10 @@
 import pandas as pd
 
-from app.models.column import ColumnSummary
 from app.models.visualization import (
     ChartOption,
     VisualizationOptions,
 )
-from app.processors.column_analyzer import detect_column_type
-
+from app.processors.type_detector import detect_column_type
 
 def create_chart_option(
     chart_type: str,
@@ -74,15 +72,7 @@ def get_single_column_charts(
         ]
 
     if column_type == "datetime":
-        return [
-            create_chart_option(
-                chart_type="timeline",
-                label="Timeline",
-                description=(
-                    "Shows how observations are distributed over time."
-                ),
-            ),
-        ]
+        return []
 
     return []
 
@@ -111,18 +101,10 @@ def get_two_column_charts(
         ]
 
     if (
-        column_a_type == "categorical"
-        and column_b_type == "categorical"
-    ):
+    column_a_type == "categorical"
+    and column_b_type == "categorical"
+):
         return [
-            create_chart_option(
-                chart_type="grouped_bar",
-                label="Grouped Bar Chart",
-                description=(
-                    "Compares category frequencies "
-                    "across two categorical variables."
-                ),
-            ),
             create_chart_option(
                 chart_type="heatmap",
                 label="Heatmap",
@@ -227,7 +209,7 @@ def generate_histogram_data(
     if clean_series.empty:
         return []
 
-    counts, bin_edges = pd.cut(
+    counts, _ = pd.cut(
         clean_series,
         bins=bins,
         retbins=True,
@@ -358,15 +340,16 @@ def generate_categorical_heatmap_data(
 
 def generate_grouped_numeric_data(
     numeric_series: pd.Series,
-    categorical_series: pd.Series
+    categorical_series: pd.Series,
 ) -> list[dict]:
     """
-    Generates grouped statistics for numeric and categorical data.
+    Generates grouped mean values and observation counts
+    for numeric data across categorical groups.
     """
 
     paired_data = pd.concat(
         [numeric_series, categorical_series],
-        axis=1
+        axis=1,
     ).dropna()
 
     if paired_data.empty:
@@ -378,18 +361,21 @@ def generate_grouped_numeric_data(
     grouped = (
         paired_data
         .groupby(categorical_column)[numeric_column.name]
-        .mean()
+        .agg(
+            mean="mean",
+            count="count",
+        )
         .round(2)
     )
 
     return [
         {
             "category": str(category),
-            "value": float(value)
+            "value": float(row["mean"]),
+            "count": int(row["count"]),
         }
-        for category, value in grouped.items()
+        for category, row in grouped.iterrows()
     ]
-
 
 def generate_chart_data(
     dataframe: pd.DataFrame,
@@ -442,28 +428,34 @@ def generate_chart_data(
             "data": data,
         }
 
-    if chart_type == "boxplot":
+    if chart_type == "boxplot" and column_b is None:
 
-        if column_b is None:
-
-            if detect_column_type(series_a) != "numeric":
-                raise ValueError(
-                    "Box plot requires a numeric column."
-                )
-
-            data = generate_boxplot_data(
-                series=series_a
+        if detect_column_type(series_a) != "numeric":
+            raise ValueError(
+                "Box plot requires a numeric column."
             )
 
-            return {
-                "chart_type": "boxplot",
-                "title": f"Distribution of {column_a}",
-                "x_label": column_a,
-                "y_label": None,
-                "data": [data] if data else [],
-            }
+        data = generate_boxplot_data(
+            series=series_a
+        )
+
+        return {
+            "chart_type": "boxplot",
+            "title": f"Distribution of {column_a}",
+            "x_label": column_a,
+            "y_label": None,
+            "data": [data] if data else [],
+        }
 
     if chart_type == "bar":
+
+        if detect_column_type(series_a) not in {
+            "categorical",
+            "boolean",
+        }:
+            raise ValueError(
+                "Bar chart requires a categorical or boolean column."
+            )
 
         data = generate_bar_data(
             series=series_a
@@ -568,7 +560,6 @@ def generate_chart_data(
             "y_label": str(numeric_series.name),
             "data": data,
         }
-
 
     if chart_type == "grouped_bar":
 

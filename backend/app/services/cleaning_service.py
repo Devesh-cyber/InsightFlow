@@ -1,5 +1,4 @@
 from app.models.cleaning import (
-    CleaningOperation,
     CleaningRequest,
     CleaningResponse,
 )
@@ -9,6 +8,7 @@ from app.processors.cleaning_analyzer import (
 )
 
 from app.processors.session_manager import get_session
+from app.processors.metadata import generate_metadata
 
 
 def apply_cleaning(
@@ -31,6 +31,11 @@ def apply_cleaning(
     session.is_modified = True
 
     session.cleaning_history.append(operation)
+
+    session.metadata = generate_metadata(
+        dataframe=cleaned_dataframe,
+        filename=session.filename,
+    )
 
     return CleaningResponse(
         status="success",

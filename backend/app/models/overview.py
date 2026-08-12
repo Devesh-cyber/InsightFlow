@@ -2,7 +2,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 from app.models.dataset import DatasetMetadata
 
-class OverviewRepsponse(BaseModel):
+class OverviewResponse(BaseModel):
     '''
     Response model for the dataset overview
     '''

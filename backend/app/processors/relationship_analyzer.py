@@ -1,7 +1,7 @@
 import pandas as pd
 
 from app.models.relationship import RelationshipResult
-from app.processors.column_analyzer import detect_column_type
+from app.processors.type_detector import detect_column_type
 
 
 def determine_analysis_type(
@@ -123,117 +123,6 @@ def determine_strength(
 
     return "very weak"
 
-
-def analyze_relationship(
-    dataframe: pd.DataFrame,
-    column_a: str,
-    column_b: str
-) -> RelationshipResult:
-    """
-    Analyzes the relationship between two selected columns.
-    """
-
-    if column_a not in dataframe.columns:
-        raise ValueError(
-            f"Column '{column_a}' does not exist."
-        )
-
-    if column_b not in dataframe.columns:
-        raise ValueError(
-            f"Column '{column_b}' does not exist."
-        )
-
-    if column_a == column_b:
-        raise ValueError(
-            "Please select two different columns."
-        )
-
-    series_a = dataframe[column_a]
-    series_b = dataframe[column_b]
-
-    column_a_type = detect_column_type(series_a)
-    column_b_type = detect_column_type(series_b)
-
-    analysis_type = determine_analysis_type(
-        column_a_type,
-        column_b_type
-    )
-
-    if analysis_type == "numeric_numeric":
-
-        (
-            correlation,
-            strength,
-            direction,
-            sample_size
-        ) = calculate_numeric_relationship(
-            series_a,
-            series_b
-        )
-
-        return RelationshipResult(
-            column_a=column_a,
-            column_b=column_b,
-            column_a_type=column_a_type,
-            column_b_type=column_b_type,
-            analysis_type=analysis_type,
-            correlation=correlation,
-            strength=strength,
-            direction=direction,
-            sample_size=sample_size
-        )
-
-    if analysis_type == "categorical_categorical":
-
-        (
-            contingency_table,
-            sample_size
-        ) = calculate_categorical_relationship(
-            series_a,
-            series_b
-        )
-
-        return RelationshipResult(
-            column_a=column_a,
-            column_b=column_b,
-            column_a_type=column_a_type,
-            column_b_type=column_b_type,
-            analysis_type=analysis_type,
-            sample_size=sample_size,
-            result={
-                "contingency_table": contingency_table
-            }
-        )
-
-    if analysis_type == "numeric_categorical":
-
-        if column_a_type == "numeric":
-            numeric_series = series_a
-            categorical_series = series_b
-
-        else:
-            numeric_series = series_b
-            categorical_series = series_a
-
-        (
-            grouped_statistics,
-            sample_size
-        ) = calculate_numeric_categorical_relationship(
-            numeric_series=numeric_series,
-            categorical_series=categorical_series
-        )
-
-        return RelationshipResult(
-            column_a=column_a,
-            column_b=column_b,
-            column_a_type=column_a_type,
-            column_b_type=column_b_type,
-            analysis_type=analysis_type,
-            sample_size=sample_size,
-            result={
-                "grouped_statistics": grouped_statistics
-            }
-        )
 
 
 def calculate_categorical_relationship(

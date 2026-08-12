@@ -25,5 +25,5 @@ app.include_router(cleaning_router)
 @app.get('/')
 def root():
     return {
-        'message' : 'InsightFLow Backend is Running 🚀'
+        'message' : 'InsightFlow Backend is Running 🚀'
     }
