@@ -4,7 +4,14 @@ from app.models.visualization import (
     ChartOption,
     VisualizationOptions,
 )
+
 from app.processors.type_detector import detect_column_type
+
+from app.core.exceptions import (
+    ColumnNotFoundError,
+    InvalidOperationError,
+)
+
 
 def create_chart_option(
     chart_type: str,
@@ -101,9 +108,9 @@ def get_two_column_charts(
         ]
 
     if (
-    column_a_type == "categorical"
-    and column_b_type == "categorical"
-):
+        column_a_type == "categorical"
+        and column_b_type == "categorical"
+    ):
         return [
             create_chart_option(
                 chart_type="heatmap",
@@ -154,17 +161,23 @@ def get_visualization_options(
     """
 
     if column_a not in dataframe.columns:
-        raise ValueError(
-            f"Column '{column_a}' does not exist."
+        raise ColumnNotFoundError(
+            column_name=column_a
         )
 
-    if column_b is not None and column_b not in dataframe.columns:
-        raise ValueError(
-            f"Column '{column_b}' does not exist."
+    if (
+        column_b is not None
+        and column_b not in dataframe.columns
+    ):
+        raise ColumnNotFoundError(
+            column_name=column_b
         )
 
-    if column_b is not None and column_a == column_b:
-        raise ValueError(
+    if (
+        column_b is not None
+        and column_a == column_b
+    ):
+        raise InvalidOperationError(
             "Please select two different columns."
         )
 
@@ -198,7 +211,7 @@ def get_visualization_options(
 
 def generate_histogram_data(
     series: pd.Series,
-    bins: int = 10
+    bins: int = 10,
 ) -> list[dict]:
     """
     Generates frequency data for a numeric histogram.
@@ -213,7 +226,7 @@ def generate_histogram_data(
         clean_series,
         bins=bins,
         retbins=True,
-        include_lowest=True
+        include_lowest=True,
     )
 
     frequencies = counts.value_counts(
@@ -223,16 +236,18 @@ def generate_histogram_data(
     data = []
 
     for interval, frequency in frequencies.items():
-        data.append({
-            "range": str(interval),
-            "count": int(frequency)
-        })
+        data.append(
+            {
+                "range": str(interval),
+                "count": int(frequency),
+            }
+        )
 
     return data
 
 
 def generate_boxplot_data(
-    series: pd.Series
+    series: pd.Series,
 ) -> dict:
     """
     Generates summary statistics required for a box plot.
@@ -248,13 +263,13 @@ def generate_boxplot_data(
         "q1": float(clean_series.quantile(0.25)),
         "median": float(clean_series.median()),
         "q3": float(clean_series.quantile(0.75)),
-        "maximum": float(clean_series.max())
+        "maximum": float(clean_series.max()),
     }
 
 
 def generate_bar_data(
     series: pd.Series,
-    limit: int = 20
+    limit: int = 20,
 ) -> list[dict]:
     """
     Generates category frequency data for a bar chart.
@@ -266,13 +281,12 @@ def generate_bar_data(
         return []
 
     counts = clean_series.value_counts()
-
     counts = counts.head(limit)
 
     return [
         {
             "category": str(category),
-            "count": int(count)
+            "count": int(count),
         }
         for category, count in counts.items()
     ]
@@ -280,7 +294,7 @@ def generate_bar_data(
 
 def generate_scatter_data(
     series_x: pd.Series,
-    series_y: pd.Series
+    series_y: pd.Series,
 ) -> list[dict]:
     """
     Generates paired numeric data for a scatter plot.
@@ -288,13 +302,13 @@ def generate_scatter_data(
 
     paired_data = pd.concat(
         [series_x, series_y],
-        axis=1
+        axis=1,
     ).dropna()
 
     return [
         {
             "x": float(row.iloc[0]),
-            "y": float(row.iloc[1])
+            "y": float(row.iloc[1]),
         }
         for _, row in paired_data.iterrows()
     ]
@@ -302,7 +316,7 @@ def generate_scatter_data(
 
 def generate_categorical_heatmap_data(
     series_x: pd.Series,
-    series_y: pd.Series
+    series_y: pd.Series,
 ) -> list[dict]:
     """
     Generates frequency data for a categorical heatmap.
@@ -310,7 +324,7 @@ def generate_categorical_heatmap_data(
 
     paired_data = pd.concat(
         [series_x, series_y],
-        axis=1
+        axis=1,
     ).dropna()
 
     if paired_data.empty:
@@ -318,7 +332,7 @@ def generate_categorical_heatmap_data(
 
     table = pd.crosstab(
         paired_data.iloc[:, 0],
-        paired_data.iloc[:, 1]
+        paired_data.iloc[:, 1],
     )
 
     data = []
@@ -326,16 +340,17 @@ def generate_categorical_heatmap_data(
     for x_value in table.index:
         for y_value in table.columns:
 
-            data.append({
-                "x": str(x_value),
-                "y": str(y_value),
-                "count": int(
-                    table.loc[x_value, y_value]
-                )
-            })
+            data.append(
+                {
+                    "x": str(x_value),
+                    "y": str(y_value),
+                    "count": int(
+                        table.loc[x_value, y_value]
+                    ),
+                }
+            )
 
     return data
-
 
 
 def generate_grouped_numeric_data(
@@ -377,6 +392,7 @@ def generate_grouped_numeric_data(
         for category, row in grouped.iterrows()
     ]
 
+
 def generate_chart_data(
     dataframe: pd.DataFrame,
     column_a: str,
@@ -389,17 +405,23 @@ def generate_chart_data(
     """
 
     if column_a not in dataframe.columns:
-        raise ValueError(
-            f"Column '{column_a}' does not exist."
+        raise ColumnNotFoundError(
+            column_name=column_a
         )
 
-    if column_b is not None and column_b not in dataframe.columns:
-        raise ValueError(
-            f"Column '{column_b}' does not exist."
+    if (
+        column_b is not None
+        and column_b not in dataframe.columns
+    ):
+        raise ColumnNotFoundError(
+            column_name=column_b
         )
 
-    if column_b is not None and column_a == column_b:
-        raise ValueError(
+    if (
+        column_b is not None
+        and column_a == column_b
+    ):
+        raise InvalidOperationError(
             "Please select two different columns."
         )
 
@@ -412,7 +434,7 @@ def generate_chart_data(
     if chart_type == "histogram":
 
         if detect_column_type(series_a) != "numeric":
-            raise ValueError(
+            raise InvalidOperationError(
                 "Histogram requires a numeric column."
             )
 
@@ -428,10 +450,13 @@ def generate_chart_data(
             "data": data,
         }
 
-    if chart_type == "boxplot" and column_b is None:
+    if (
+        chart_type == "boxplot"
+        and column_b is None
+    ):
 
         if detect_column_type(series_a) != "numeric":
-            raise ValueError(
+            raise InvalidOperationError(
                 "Box plot requires a numeric column."
             )
 
@@ -453,8 +478,9 @@ def generate_chart_data(
             "categorical",
             "boolean",
         }:
-            raise ValueError(
-                "Bar chart requires a categorical or boolean column."
+            raise InvalidOperationError(
+                "Bar chart requires a categorical "
+                "or boolean column."
             )
 
         data = generate_bar_data(
@@ -474,7 +500,7 @@ def generate_chart_data(
     # --------------------------------
 
     if column_b is None:
-        raise ValueError(
+        raise InvalidOperationError(
             f"Chart '{chart_type}' requires two columns."
         )
 
@@ -485,14 +511,17 @@ def generate_chart_data(
 
     if chart_type == "scatter":
 
-        if type_a != "numeric" or type_b != "numeric":
-            raise ValueError(
+        if (
+            type_a != "numeric"
+            or type_b != "numeric"
+        ):
+            raise InvalidOperationError(
                 "Scatter plot requires two numeric columns."
             )
 
         data = generate_scatter_data(
             series_x=series_a,
-            series_y=series_b
+            series_y=series_b,
         )
 
         return {
@@ -505,14 +534,17 @@ def generate_chart_data(
 
     if chart_type == "heatmap":
 
-        if type_a != "categorical" or type_b != "categorical":
-            raise ValueError(
+        if (
+            type_a != "categorical"
+            or type_b != "categorical"
+        ):
+            raise InvalidOperationError(
                 "Heatmap requires two categorical columns."
             )
 
         data = generate_categorical_heatmap_data(
             series_x=series_a,
-            series_y=series_b
+            series_y=series_b,
         )
 
         return {
@@ -540,14 +572,14 @@ def generate_chart_data(
             categorical_series = series_a
 
         else:
-            raise ValueError(
+            raise InvalidOperationError(
                 "Grouped box plot requires "
                 "a numeric and categorical column."
             )
 
         data = generate_grouped_boxplot_data(
             numeric_series=numeric_series,
-            categorical_series=categorical_series
+            categorical_series=categorical_series,
         )
 
         return {
@@ -578,14 +610,14 @@ def generate_chart_data(
             categorical_series = series_a
 
         else:
-            raise ValueError(
+            raise InvalidOperationError(
                 "Grouped bar chart requires "
                 "a numeric and categorical column."
             )
 
         data = generate_grouped_numeric_data(
             numeric_series=numeric_series,
-            categorical_series=categorical_series
+            categorical_series=categorical_series,
         )
 
         return {
@@ -599,14 +631,14 @@ def generate_chart_data(
             "data": data,
         }
 
-    raise ValueError(
+    raise InvalidOperationError(
         f"Unsupported chart type: '{chart_type}'."
     )
 
 
 def generate_grouped_boxplot_data(
     numeric_series: pd.Series,
-    categorical_series: pd.Series
+    categorical_series: pd.Series,
 ) -> list[dict]:
     """
     Generates box plot statistics for a numeric column
@@ -615,7 +647,7 @@ def generate_grouped_boxplot_data(
 
     paired_data = pd.concat(
         [numeric_series, categorical_series],
-        axis=1
+        axis=1,
     ).dropna()
 
     if paired_data.empty:
@@ -635,13 +667,15 @@ def generate_grouped_boxplot_data(
         if values.empty:
             continue
 
-        data.append({
-            "category": str(category),
-            "minimum": float(values.min()),
-            "q1": float(values.quantile(0.25)),
-            "median": float(values.median()),
-            "q3": float(values.quantile(0.75)),
-            "maximum": float(values.max()),
-        })
+        data.append(
+            {
+                "category": str(category),
+                "minimum": float(values.min()),
+                "q1": float(values.quantile(0.25)),
+                "median": float(values.median()),
+                "q3": float(values.quantile(0.75)),
+                "maximum": float(values.max()),
+            }
+        )
 
     return data

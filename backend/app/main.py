@@ -6,7 +6,13 @@ from app.api.columns import router as column_router
 from app.api.relationships import router as relationship_router
 from app.api.visualization import router as visualization_router
 from app.api.cleaning import router as cleaning_router
+from app.core.exceptions import InsightFlowException
+from app.api.export import router as export_router
 
+
+from app.core.exception_handler import (
+    insightflow_exception_handler,
+)
 
 app = FastAPI(
     title='InsightFlow API',
@@ -21,6 +27,12 @@ app.include_router(column_router)
 app.include_router(relationship_router)
 app.include_router(visualization_router)
 app.include_router(cleaning_router)
+app.include_router(export_router)
+app.add_exception_handler(
+    InsightFlowException,
+    insightflow_exception_handler,
+)
+
 
 @app.get('/')
 def root():

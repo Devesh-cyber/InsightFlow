@@ -1,6 +1,7 @@
 from uuid import uuid4
 from fastapi import HTTPException, status
 import pandas as pd
+from app.core.exceptions import DatasetNotFoundError
 
 from app.models.dataset import (
     DatasetMetadata,
@@ -25,10 +26,7 @@ def create_session(filename: str, dataframe: pd.DataFrame, metadata: DatasetMeta
 
 def get_session(dataset_id: str) -> DatasetSession:
     if dataset_id not in SESSION_CACHE:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='Dataset session not found'
-        )
+        raise DatasetNotFoundError(dataset_id=dataset_id)
     return SESSION_CACHE[dataset_id]
 
 def  delete_session(dataset_id: str) -> None:

@@ -5,6 +5,11 @@ from app.models.cleaning import (
     CleaningRequest,
 )
 
+from app.core.exceptions import (
+    ColumnNotFoundError,
+    InvalidOperationError,
+)
+
 
 def drop_duplicate_rows(
     dataframe: pd.DataFrame,
@@ -176,8 +181,8 @@ def drop_column(
     """
 
     if column_name not in dataframe.columns:
-        raise ValueError(
-            f"Column '{column_name}' does not exist."
+        raise ColumnNotFoundError(
+            column_name=column_name
         )
 
     cleaned_dataframe = (
@@ -208,14 +213,14 @@ def fill_missing_mean(
     """
 
     if column_name not in dataframe.columns:
-        raise ValueError(
-            f"Column '{column_name}' does not exist."
+        raise ColumnNotFoundError(
+            column_name=column_name
         )
 
     series = dataframe[column_name]
 
     if not pd.api.types.is_numeric_dtype(series):
-        raise ValueError(
+        raise InvalidOperationError(
             "Mean imputation can only be used "
             "with numeric columns."
         )
@@ -241,7 +246,7 @@ def fill_missing_mean(
     mean_value = series.mean()
 
     if pd.isna(mean_value):
-        raise ValueError(
+        raise InvalidOperationError(
             f"Column '{column_name}' contains no valid "
             "values from which a mean can be calculated."
         )
@@ -276,14 +281,14 @@ def fill_missing_median(
     """
 
     if column_name not in dataframe.columns:
-        raise ValueError(
-            f"Column '{column_name}' does not exist."
+        raise ColumnNotFoundError(
+            column_name=column_name
         )
 
     series = dataframe[column_name]
 
     if not pd.api.types.is_numeric_dtype(series):
-        raise ValueError(
+        raise InvalidOperationError(
             "Median imputation can only be used "
             "with numeric columns."
         )
@@ -309,7 +314,7 @@ def fill_missing_median(
     median_value = series.median()
 
     if pd.isna(median_value):
-        raise ValueError(
+        raise InvalidOperationError(
             f"Column '{column_name}' contains no valid "
             "values from which a median can be calculated."
         )
@@ -345,8 +350,8 @@ def fill_missing_mode(
     """
 
     if column_name not in dataframe.columns:
-        raise ValueError(
-            f"Column '{column_name}' does not exist."
+        raise ColumnNotFoundError(
+            column_name=column_name
         )
 
     series = dataframe[column_name]
@@ -374,7 +379,7 @@ def fill_missing_mode(
     )
 
     if modes.empty:
-        raise ValueError(
+        raise InvalidOperationError(
             f"Column '{column_name}' contains no valid "
             "value from which a mode can be calculated."
         )
@@ -426,7 +431,7 @@ def apply_cleaning_operation(
     if request.operation == "drop_column":
 
         if request.column_name is None:
-            raise ValueError(
+            raise InvalidOperationError(
                 "column_name is required when dropping a column."
             )
 
@@ -438,7 +443,7 @@ def apply_cleaning_operation(
     if request.operation == "fill_missing_mean":
 
         if request.column_name is None:
-            raise ValueError(
+            raise InvalidOperationError(
                 "column_name is required for mean imputation."
             )
 
@@ -450,7 +455,7 @@ def apply_cleaning_operation(
     if request.operation == "fill_missing_median":
 
         if request.column_name is None:
-            raise ValueError(
+            raise InvalidOperationError(
                 "column_name is required for median imputation."
             )
 
@@ -462,7 +467,7 @@ def apply_cleaning_operation(
     if request.operation == "fill_missing_mode":
 
         if request.column_name is None:
-            raise ValueError(
+            raise InvalidOperationError(
                 "column_name is required for mode imputation."
             )
 
@@ -471,7 +476,6 @@ def apply_cleaning_operation(
             column_name=request.column_name,
         )
 
-    raise ValueError(
-        f"Unsupported cleaning operation: "
-        f"{request.operation}"
+    raise InvalidOperationError(
+        f"Unsupported cleaning operation: {request.operation}"
     )

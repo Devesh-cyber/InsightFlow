@@ -7,7 +7,10 @@ from app.models.column import (
     ColumnSummary,
     NumericStatistics,
 )
+
 from app.processors.type_detector import detect_column_type
+
+from app.core.exceptions import ColumnNotFoundError
 
 
 def calculate_missing_percentage(
@@ -37,8 +40,8 @@ def generate_column_summary(
     """
 
     if column_name not in dataframe.columns:
-        raise ValueError(
-            f"Column '{column_name}' does not exist."
+        raise InvalidColumnError(
+            column_name=column_name
         )
 
     series = dataframe[column_name]
@@ -97,8 +100,8 @@ def analyze_column(
     """
 
     if column_name not in dataframe.columns:
-        raise ValueError(
-            f"Column '{column_name}' does not exist."
+        raise InvalidColumnError(
+            column_name=column_name
         )
 
     series = dataframe[column_name]

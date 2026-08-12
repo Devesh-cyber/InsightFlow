@@ -3,10 +3,15 @@ import pandas as pd
 from app.models.relationship import RelationshipResult
 from app.processors.type_detector import detect_column_type
 
+from app.core.exceptions import (
+    ColumnNotFoundError,
+    InvalidOperationError,
+)
+
 
 def determine_analysis_type(
     column_a_type: str,
-    column_b_type: str
+    column_b_type: str,
 ) -> str:
     """
     Determines which relationship analysis should be performed
@@ -37,7 +42,7 @@ def determine_analysis_type(
     ):
         return "numeric_categorical"
 
-    raise ValueError(
+    raise InvalidOperationError(
         "Relationship analysis is not supported "
         "for the selected column types."
     )
@@ -45,7 +50,7 @@ def determine_analysis_type(
 
 def calculate_numeric_relationship(
     series_a: pd.Series,
-    series_b: pd.Series
+    series_b: pd.Series,
 ) -> tuple[float, str, str, int]:
     """
     Calculates Pearson correlation between two numeric columns.
@@ -53,13 +58,13 @@ def calculate_numeric_relationship(
 
     paired_data = pd.concat(
         [series_a, series_b],
-        axis=1
+        axis=1,
     ).dropna()
 
     sample_size = len(paired_data)
 
     if sample_size < 2:
-        raise ValueError(
+        raise InvalidOperationError(
             "Not enough valid data points to calculate "
             "a relationship."
         )
@@ -69,12 +74,15 @@ def calculate_numeric_relationship(
     )
 
     if pd.isna(correlation):
-        raise ValueError(
+        raise InvalidOperationError(
             "Correlation could not be calculated. "
             "The selected columns may have no variation."
         )
 
-    correlation = round(float(correlation), 4)
+    correlation = round(
+        float(correlation),
+        4,
+    )
 
     direction = determine_direction(correlation)
     strength = determine_strength(correlation)
@@ -83,12 +91,12 @@ def calculate_numeric_relationship(
         correlation,
         strength,
         direction,
-        sample_size
+        sample_size,
     )
 
 
 def determine_direction(
-    correlation: float
+    correlation: float,
 ) -> str:
     """
     Determines the direction of a correlation.
@@ -104,7 +112,7 @@ def determine_direction(
 
 
 def determine_strength(
-    correlation: float
+    correlation: float,
 ) -> str:
     """
     Determines the approximate strength of a correlation.
@@ -124,10 +132,9 @@ def determine_strength(
     return "very weak"
 
 
-
 def calculate_categorical_relationship(
     series_a: pd.Series,
-    series_b: pd.Series
+    series_b: pd.Series,
 ) -> tuple[dict, int]:
     """
     Calculates a contingency table between two categorical columns.
@@ -135,24 +142,24 @@ def calculate_categorical_relationship(
 
     paired_data = pd.concat(
         [series_a, series_b],
-        axis=1
+        axis=1,
     ).dropna()
 
     sample_size = len(paired_data)
 
     if sample_size == 0:
-        raise ValueError(
+        raise InvalidOperationError(
             "No valid observations are available "
             "for the selected columns."
         )
 
     contingency_table = pd.crosstab(
         paired_data.iloc[:, 0],
-        paired_data.iloc[:, 1]
+        paired_data.iloc[:, 1],
     )
 
     table = contingency_table.to_dict(
-        orient="index"
+        orient="index",
     )
 
     return table, sample_size
@@ -160,7 +167,7 @@ def calculate_categorical_relationship(
 
 def calculate_numeric_categorical_relationship(
     numeric_series: pd.Series,
-    categorical_series: pd.Series
+    categorical_series: pd.Series,
 ) -> tuple[dict, int]:
     """
     Calculates grouped statistics for a numeric column
@@ -169,13 +176,13 @@ def calculate_numeric_categorical_relationship(
 
     paired_data = pd.concat(
         [numeric_series, categorical_series],
-        axis=1
+        axis=1,
     ).dropna()
 
     sample_size = len(paired_data)
 
     if sample_size == 0:
-        raise ValueError(
+        raise InvalidOperationError(
             "No valid observations are available "
             "for the selected columns."
         )
@@ -191,14 +198,14 @@ def calculate_numeric_categorical_relationship(
             mean="mean",
             median="median",
             minimum="min",
-            maximum="max"
+            maximum="max",
         )
     )
 
     grouped = grouped.round(2)
 
     result = grouped.to_dict(
-        orient="index"
+        orient="index",
     )
 
     return result, sample_size
@@ -207,21 +214,24 @@ def calculate_numeric_categorical_relationship(
 def analyze_relationship(
     dataframe: pd.DataFrame,
     column_a: str,
-    column_b: str
+    column_b: str,
 ) -> RelationshipResult:
+    """
+    Analyzes the relationship between two selected columns.
+    """
 
     if column_a not in dataframe.columns:
-        raise ValueError(
-            f"Column '{column_a}' does not exist."
+        raise ColumnNotFoundError(
+            column_name=column_a,
         )
 
     if column_b not in dataframe.columns:
-        raise ValueError(
-            f"Column '{column_b}' does not exist."
+        raise ColumnNotFoundError(
+            column_name=column_b,
         )
 
     if column_a == column_b:
-        raise ValueError(
+        raise InvalidOperationError(
             "Please select two different columns."
         )
 
@@ -233,7 +243,7 @@ def analyze_relationship(
 
     analysis_type = determine_analysis_type(
         column_a_type,
-        column_b_type
+        column_b_type,
     )
 
     # Numeric ↔ Numeric
@@ -243,10 +253,10 @@ def analyze_relationship(
             correlation,
             strength,
             direction,
-            sample_size
+            sample_size,
         ) = calculate_numeric_relationship(
             series_a,
-            series_b
+            series_b,
         )
 
         return RelationshipResult(
@@ -258,7 +268,7 @@ def analyze_relationship(
             correlation=correlation,
             strength=strength,
             direction=direction,
-            sample_size=sample_size
+            sample_size=sample_size,
         )
 
     # Categorical ↔ Categorical
@@ -266,10 +276,10 @@ def analyze_relationship(
 
         (
             contingency_table,
-            sample_size
+            sample_size,
         ) = calculate_categorical_relationship(
             series_a,
-            series_b
+            series_b,
         )
 
         return RelationshipResult(
@@ -280,8 +290,8 @@ def analyze_relationship(
             analysis_type=analysis_type,
             sample_size=sample_size,
             result={
-                "contingency_table": contingency_table
-            }
+                "contingency_table": contingency_table,
+            },
         )
 
     # Numeric ↔ Categorical
@@ -296,10 +306,10 @@ def analyze_relationship(
 
         (
             grouped_statistics,
-            sample_size
+            sample_size,
         ) = calculate_numeric_categorical_relationship(
             numeric_series=numeric_series,
-            categorical_series=categorical_series
+            categorical_series=categorical_series,
         )
 
         return RelationshipResult(
@@ -310,10 +320,10 @@ def analyze_relationship(
             analysis_type=analysis_type,
             sample_size=sample_size,
             result={
-                "grouped_statistics": grouped_statistics
-            }
+                "grouped_statistics": grouped_statistics,
+            },
         )
 
-    raise ValueError(
+    raise InvalidOperationError(
         "Unsupported relationship analysis."
     )
