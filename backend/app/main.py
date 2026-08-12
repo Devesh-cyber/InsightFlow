@@ -5,6 +5,8 @@ from app.api.health import router as health_router
 from app.api.columns import router as column_router
 from app.api.relationships import router as relationship_router
 from app.api.visualization import router as visualization_router
+from app.api.cleaning import router as cleaning_router
+
 
 app = FastAPI(
     title='InsightFlow API',
@@ -18,7 +20,7 @@ app.include_router(health_router)
 app.include_router(column_router)
 app.include_router(relationship_router)
 app.include_router(visualization_router)
-
+app.include_router(cleaning_router)
 
 @app.get('/')
 def root():

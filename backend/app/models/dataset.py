@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, ConfigDict
 import pandas as pd
 from typing import Dict
 from datetime import datetime
+from app.models.cleaning import CleaningOperation
 
 class ColumnMetadata(BaseModel):
     ''' Stores the meta information about Columns '''
@@ -25,14 +26,47 @@ class DatasetMetadata(BaseModel):
     created_at : datetime = Field(default_factory=datetime.now, description='Time when metadata was generated')
 
 class DatasetSession(BaseModel):
-    ''' Stores the information about current session'''
+    """
+    Stores the information about the current dataset session.
+    """
 
     model_config = ConfigDict(
         arbitrary_types_allowed=True
     )
-    dataset_id : str = Field(..., min_length=1, description='Unique session identifier')
-    filename : str = Field(..., min_length=1, description='Original uploaded file name')
-    dataframe : pd.DataFrame = Field(..., description="Active Pandas DataFrame.")
-    metadata : DatasetMetadata = Field(..., description='Metadata associated with the dataset')
-    is_modified : bool = Field(default=False, description='Indicates whether the dataset has been modified')
-    created_at : datetime = Field(default_factory=datetime.now, description='Time when the session was created')
+
+    dataset_id: str = Field(
+        ...,
+        min_length=1,
+        description="Unique session identifier"
+    )
+
+    filename: str = Field(
+        ...,
+        min_length=1,
+        description="Original uploaded file name"
+    )
+
+    dataframe: pd.DataFrame = Field(
+        ...,
+        description="Active Pandas DataFrame."
+    )
+
+    metadata: DatasetMetadata = Field(
+        ...,
+        description="Metadata associated with the dataset"
+    )
+
+    is_modified: bool = Field(
+        default=False,
+        description="Indicates whether the dataset has been modified"
+    )
+
+    cleaning_history: list[CleaningOperation] = Field(
+        default_factory=list,
+        description="History of cleaning operations performed on the dataset."
+    )
+
+    created_at: datetime = Field(
+        default_factory=datetime.now,
+        description="Time when the session was created"
+    )
