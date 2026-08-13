@@ -60,6 +60,13 @@ class RelationshipResult(BaseModel):
         description='Correlation coefficient when applicable'
     )
 
+    association: float | None = Field(
+    None,
+    ge=0,
+    le=1,
+    description="Association strength for non-linear or categorical relationships"
+)
+    
     sample_size: int = Field(
         ...,
         ge=0,
