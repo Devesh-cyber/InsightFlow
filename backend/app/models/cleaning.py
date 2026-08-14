@@ -221,3 +221,15 @@ class CleaningPreviewResponse(BaseModel):
         ge=0,
         description="Number of columns after the proposed cleaning.",
     )
+
+
+class CleaningHistoryResponse(BaseModel):
+    status: str = Field(
+        ...,
+        min_length=1,
+        description="Status of the history request."
+    )
+    history: list[CleaningOperation] = Field(
+        default_factory=list,
+        description="List of cleaning operations performed on the dataset."
+    )

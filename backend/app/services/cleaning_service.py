@@ -4,6 +4,7 @@ from app.models.cleaning import (
     CleaningResponse,
     CleaningRecommendationsResponse,
     CleaningPreviewResponse,
+    CleaningHistoryResponse,
 )
 
 from app.processors.cleaning_processor import (
@@ -88,4 +89,12 @@ def get_cleaning_recommendations(
     return CleaningRecommendationsResponse(
         status='success',
         recommendations=recommendations,
+    )
+
+def get_cleaning_history(dataset_id: str) -> CleaningHistoryResponse:
+    session = get_session(dataset_id)
+
+    return CleaningHistoryResponse(
+        status="success",
+        history=session.cleaning_history,
     )

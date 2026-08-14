@@ -5,12 +5,14 @@ from app.models.cleaning import (
     CleaningPreviewResponse,
     CleaningRequest,
     CleaningResponse,
+    CleaningHistoryResponse,
 )
 
 from app.services.cleaning_service import (
     apply_cleaning,
     preview_cleaning,
     get_cleaning_recommendations,
+    get_cleaning_history,
 )
 
 
@@ -76,3 +78,12 @@ async def clean_dataset(
         dataset_id=dataset_id,
         request=request,
     )
+
+
+@router.get(
+    "/{dataset_id}/history",
+    response_model=CleaningHistoryResponse,
+    summary="Get Cleaning History",
+)
+async def cleaning_history(dataset_id: str) -> CleaningHistoryResponse:
+    return get_cleaning_history(dataset_id=dataset_id)
