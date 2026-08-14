@@ -9,6 +9,9 @@ from app.core.exceptions import (
 )
 
 
+MAX_CATEGORICAL_LEVELS = 100
+
+
 def determine_analysis_type(
     column_a_type: str,
     column_b_type: str,
@@ -24,20 +27,22 @@ def determine_analysis_type(
     ):
         return "numeric_numeric"
 
+    categorical_types = {"categorical", "boolean"}
+
     if (
-        column_a_type == "categorical"
-        and column_b_type == "categorical"
+        column_a_type in categorical_types
+        and column_b_type in categorical_types
     ):
         return "categorical_categorical"
 
     if (
         column_a_type == "numeric"
-        and column_b_type == "categorical"
+        and column_b_type in {"categorical", "boolean"}
     ):
         return "numeric_categorical"
 
     if (
-        column_a_type == "categorical"
+        column_a_type in {"categorical", "boolean"}
         and column_b_type == "numeric"
     ):
         return "numeric_categorical"
@@ -48,6 +53,26 @@ def determine_analysis_type(
     )
 
 
+def prepare_numeric_pairs(
+    series_a: pd.Series,
+    series_b: pd.Series,
+) -> pd.DataFrame:
+    """
+    Aligns two numeric columns and removes missing/non-finite observations.
+    """
+    paired_data = pd.concat(
+        [series_a, series_b],
+        axis=1,
+    )
+
+    paired_data = paired_data.replace(
+        [np.inf, -np.inf],
+        np.nan,
+    ).dropna()
+
+    return paired_data
+
+
 def calculate_numeric_relationship(
     series_a: pd.Series,
     series_b: pd.Series,
@@ -56,10 +81,10 @@ def calculate_numeric_relationship(
     Calculates Pearson correlation between two numeric columns.
     """
 
-    paired_data = pd.concat(
-        [series_a, series_b],
-        axis=1,
-    ).dropna()
+    paired_data = prepare_numeric_pairs(
+        series_a,
+        series_b,
+    )
 
     sample_size = len(paired_data)
 
@@ -102,10 +127,10 @@ def determine_direction(
     Determines the direction of a correlation.
     """
 
-    if correlation > 0:
+    if correlation >= 0.05:
         return "positive"
 
-    if correlation < 0:
+    if correlation <= -0.05:
         return "negative"
 
     return "none"
@@ -143,7 +168,7 @@ def calculate_cramers_v(
 
     if len(paired_data) == 0:
         raise InvalidOperationError(
-            "No valid observations are available "
+            "Not enough valid observations are available "
             "to calculate the association."
         )
 
@@ -213,9 +238,12 @@ def calculate_eta(
     paired_data = pd.concat(
         [numeric_series, categorical_series],
         axis=1,
+    ).replace(
+        [np.inf, -np.inf],
+        np.nan,
     ).dropna()
 
-    if len(paired_data) == 0:
+    if len(paired_data) < 2:
         raise InvalidOperationError(
             "No valid observations are available "
             "to calculate the association."
@@ -317,6 +345,9 @@ def calculate_numeric_categorical_relationship(
     paired_data = pd.concat(
         [numeric_series, categorical_series],
         axis=1,
+    ).replace(
+        [np.inf, -np.inf],
+        np.nan,
     ).dropna()
 
     sample_size = len(paired_data)
@@ -365,6 +396,11 @@ def analyze_relationship(
             column_name=column_a,
         )
 
+    if not dataframe.columns.is_unique:
+        raise InvalidOperationError(
+            "Relationship analysis requires unique column names."
+        )
+
     if column_b not in dataframe.columns:
         raise ColumnNotFoundError(
             column_name=column_b,
@@ -381,18 +417,29 @@ def analyze_relationship(
     column_a_type = detect_column_type(series_a)
     column_b_type = detect_column_type(series_b)
 
-    print(
-    f"[RELATIONSHIP DEBUG] "
-    f"{column_a}={column_a_type} "
-    f"(dtype={series_a.dtype}), "
-    f"{column_b}={column_b_type} "
-    f"(dtype={series_b.dtype})"
-)
-    
     analysis_type = determine_analysis_type(
         column_a_type,
         column_b_type,
     )
+
+    if analysis_type in {
+        "categorical_categorical",
+        "numeric_categorical",
+    }:
+        categorical_series = (
+            series_a
+            if column_a_type in {"categorical", "boolean"}
+            else series_b
+        )
+        category_count = int(categorical_series.dropna().nunique())
+
+        if category_count > MAX_CATEGORICAL_LEVELS:
+            raise InvalidOperationError(
+                f"Relationship analysis is not supported for a "
+                f"categorical column with more than "
+                f"{MAX_CATEGORICAL_LEVELS} unique values. "
+                "Select a lower-cardinality column."
+            )
 
     # Numeric ↔ Numeric
     if analysis_type == "numeric_numeric":

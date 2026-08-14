@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 from app.models.visualization import (
     ChartOption,
@@ -11,6 +12,19 @@ from app.core.exceptions import (
     ColumnNotFoundError,
     InvalidOperationError,
 )
+
+SUPPORTED_CHART_TYPES = {
+    "histogram",
+    "boxplot",
+    "bar",
+    "scatter",
+    "heatmap",
+    "grouped_bar",
+    "line",
+}
+MAX_CATEGORIES = 20
+MAX_SCATTER_POINTS = 10000
+MAX_LINE_POINTS = 10000
 
 
 def create_chart_option(
@@ -108,8 +122,8 @@ def get_two_column_charts(
         ]
 
     if (
-        column_a_type == "categorical"
-        and column_b_type == "categorical"
+        column_a_type in {"categorical", "boolean"}
+        and column_b_type in {"categorical", "boolean"}
     ):
         return [
             create_chart_option(
@@ -124,9 +138,9 @@ def get_two_column_charts(
 
     if (
         column_a_type == "numeric"
-        and column_b_type == "categorical"
+        and column_b_type in {"categorical", "boolean"}
     ) or (
-        column_a_type == "categorical"
+        column_a_type in {"categorical", "boolean"}
         and column_b_type == "numeric"
     ):
         return [
@@ -147,8 +161,51 @@ def get_two_column_charts(
             ),
         ]
 
+    if (
+        column_a_type == "datetime"
+        and column_b_type == "numeric"
+    ) or (
+        column_a_type == "numeric"
+        and column_b_type == "datetime"
+    ):
+        return [
+            create_chart_option(
+                chart_type="line",
+                label="Line Chart",
+                description=(
+                    "Shows how a numeric measure changes over time."
+                ),
+            ),
+        ]
+
     return []
 
+
+def _has_usable_values(series: pd.Series, column_type: str) -> bool:
+    """Returns whether a column contains at least one usable value."""
+    if column_type == "numeric":
+        values = pd.to_numeric(series, errors="coerce")
+        values = values.replace([np.inf, -np.inf], np.nan).dropna()
+        return not values.empty
+    if column_type == "datetime":
+        values = pd.to_datetime(series, errors="coerce", utc=True).dropna()
+        return not values.empty
+    return not series.dropna().empty
+
+
+def _collapse_categories(
+    series: pd.Series,
+    limit: int = MAX_CATEGORIES,
+) -> pd.Series:
+    """Keeps the most frequent categories and combines the remainder."""
+    counts = series.value_counts(dropna=False)
+    if len(counts) <= limit:
+        return series
+
+    keep = set(counts.head(limit).index)
+    return series.map(
+        lambda value: value if value in keep else "Other (combined)"
+    )
 
 def get_visualization_options(
     dataframe: pd.DataFrame,
@@ -185,22 +242,51 @@ def get_visualization_options(
         dataframe[column_a]
     )
 
-    if column_b is None:
+    if not _has_usable_values(dataframe[column_a], column_a_type):
+        return VisualizationOptions(
+            column_a=column_a,
+            column_b=column_b,
+            available_charts=[],
+        )
 
+    if column_b is None:
         charts = get_single_column_charts(
             column_type=column_a_type
         )
-
     else:
+        column_b_type = detect_column_type(dataframe[column_b])
 
-        column_b_type = detect_column_type(
-            dataframe[column_b]
-        )
+        if not _has_usable_values(dataframe[column_b], column_b_type):
+            return VisualizationOptions(
+                column_a=column_a,
+                column_b=column_b,
+                available_charts=[],
+            )
 
         charts = get_two_column_charts(
             column_a_type=column_a_type,
             column_b_type=column_b_type,
         )
+
+        if charts:
+            paired = pd.concat([dataframe[column_a], dataframe[column_b]], axis=1)
+            if {column_a_type, column_b_type} == {"numeric", "numeric"}:
+                usable = pd.concat(
+                    [pd.to_numeric(paired.iloc[:, 0], errors="coerce"),
+                     pd.to_numeric(paired.iloc[:, 1], errors="coerce")],
+                    axis=1,
+                ).replace([np.inf, -np.inf], np.nan).dropna()
+            elif {column_a_type, column_b_type} == {"datetime", "numeric"}:
+                dt_col = dataframe[column_a] if column_a_type == "datetime" else dataframe[column_b]
+                num_col = dataframe[column_b] if column_a_type == "datetime" else dataframe[column_a]
+                usable = pd.DataFrame({
+                    "datetime": pd.to_datetime(dt_col, errors="coerce", utc=True),
+                    "value": pd.to_numeric(num_col, errors="coerce"),
+                }).replace([np.inf, -np.inf], np.nan).dropna()
+            else:
+                usable = paired.dropna()
+            if usable.empty:
+                charts = []
 
     return VisualizationOptions(
         column_a=column_a,
@@ -217,10 +303,21 @@ def generate_histogram_data(
     Generates frequency data for a numeric histogram.
     """
 
-    clean_series = series.dropna()
+    clean_series = pd.to_numeric(series, errors="coerce")
+    clean_series = clean_series.replace([np.inf, -np.inf], np.nan).dropna()
 
     if clean_series.empty:
         return []
+
+    if clean_series.nunique() == 1:
+        return [
+            {
+                "range": str(clean_series.iloc[0]),
+                "count": int(len(clean_series)),
+            }
+        ]
+
+    bins = max(1, min(int(bins), int(clean_series.nunique())))
 
     counts, _ = pd.cut(
         clean_series,
@@ -253,7 +350,8 @@ def generate_boxplot_data(
     Generates summary statistics required for a box plot.
     """
 
-    clean_series = series.dropna()
+    clean_series = pd.to_numeric(series, errors="coerce")
+    clean_series = clean_series.replace([np.inf, -np.inf], np.nan).dropna()
 
     if clean_series.empty:
         return {}
@@ -269,48 +367,82 @@ def generate_boxplot_data(
 
 def generate_bar_data(
     series: pd.Series,
-    limit: int = 20,
+    limit: int = MAX_CATEGORIES,
 ) -> list[dict]:
-    """
-    Generates category frequency data for a bar chart.
-    """
+    """Generates category frequencies, preserving the remainder as Other."""
 
     clean_series = series.dropna()
-
     if clean_series.empty:
         return []
 
     counts = clean_series.value_counts()
-    counts = counts.head(limit)
+    if len(counts) <= limit:
+        selected = counts
+        other_count = 0
+    else:
+        selected = counts.head(limit)
+        other_count = int(counts.iloc[limit:].sum())
 
-    return [
-        {
-            "category": str(category),
-            "count": int(count),
-        }
-        for category, count in counts.items()
+    data = [
+        {"category": str(category), "count": int(count)}
+        for category, count in selected.items()
     ]
+    if other_count:
+        data.append({"category": "Other", "count": other_count})
+    return data
 
 
 def generate_scatter_data(
     series_x: pd.Series,
     series_y: pd.Series,
+    max_points: int = MAX_SCATTER_POINTS,
 ) -> list[dict]:
-    """
-    Generates paired numeric data for a scatter plot.
-    """
+    """Generates finite paired numeric points with deterministic downsampling."""
 
     paired_data = pd.concat(
-        [series_x, series_y],
+        [pd.to_numeric(series_x, errors="coerce"),
+         pd.to_numeric(series_y, errors="coerce")],
         axis=1,
-    ).dropna()
+    ).replace([np.inf, -np.inf], np.nan).dropna()
+
+    if len(paired_data) > max_points:
+        indices = np.linspace(0, len(paired_data) - 1, max_points, dtype=int)
+        paired_data = paired_data.iloc[indices]
 
     return [
-        {
-            "x": float(row.iloc[0]),
-            "y": float(row.iloc[1]),
-        }
-        for _, row in paired_data.iterrows()
+        {"x": float(x), "y": float(y)}
+        for x, y in paired_data.itertuples(index=False, name=None)
+    ]
+
+
+def generate_line_data(
+    datetime_series: pd.Series,
+    numeric_series: pd.Series,
+    max_points: int = MAX_LINE_POINTS,
+) -> list[dict]:
+    """Generates sorted finite time-series points with deterministic downsampling."""
+
+    paired_data = pd.DataFrame({
+        "datetime": pd.to_datetime(datetime_series, errors="coerce", utc=True),
+        "value": pd.to_numeric(numeric_series, errors="coerce"),
+    })
+    paired_data = (
+        paired_data
+        .replace([np.inf, -np.inf], np.nan)
+        .dropna()
+        .sort_values("datetime")
+    )
+
+    if paired_data.empty:
+        return []
+
+    if len(paired_data) > max_points:
+        indices = np.linspace(0, len(paired_data) - 1, max_points, dtype=int)
+        paired_data = paired_data.iloc[indices]
+
+    return [
+        {"date": timestamp.isoformat(), "value": float(value)}
+        for timestamp, value in paired_data.itertuples(index=False, name=None)
     ]
 
 
@@ -318,69 +450,48 @@ def generate_categorical_heatmap_data(
     series_x: pd.Series,
     series_y: pd.Series,
 ) -> list[dict]:
-    """
-    Generates frequency data for a categorical heatmap.
-    """
+    """Generates bounded frequency data for a categorical heatmap."""
 
-    paired_data = pd.concat(
-        [series_x, series_y],
-        axis=1,
-    ).dropna()
-
+    paired_data = pd.concat([series_x, series_y], axis=1).dropna()
     if paired_data.empty:
         return []
 
-    table = pd.crosstab(
-        paired_data.iloc[:, 0],
-        paired_data.iloc[:, 1],
-    )
+    x = _collapse_categories(paired_data.iloc[:, 0])
+    y = _collapse_categories(paired_data.iloc[:, 1])
+    table = pd.crosstab(x, y)
 
-    data = []
-
-    for x_value in table.index:
-        for y_value in table.columns:
-
-            data.append(
-                {
-                    "x": str(x_value),
-                    "y": str(y_value),
-                    "count": int(
-                        table.loc[x_value, y_value]
-                    ),
-                }
-            )
-
-    return data
+    return [
+        {
+            "x": str(x_value),
+            "y": str(y_value),
+            "count": int(table.loc[x_value, y_value]),
+        }
+        for x_value in table.index
+        for y_value in table.columns
+    ]
 
 
 def generate_grouped_numeric_data(
     numeric_series: pd.Series,
     categorical_series: pd.Series,
 ) -> list[dict]:
-    """
-    Generates grouped mean values and observation counts
-    for numeric data across categorical groups.
-    """
+    """Generates grouped means/counts using finite numeric observations."""
 
-    paired_data = pd.concat(
-        [numeric_series, categorical_series],
-        axis=1,
-    ).dropna()
-
+    paired_data = pd.DataFrame({
+        "numeric": pd.to_numeric(numeric_series, errors="coerce"),
+        "category": categorical_series,
+    })
+    paired_data = (
+        paired_data
+        .replace([np.inf, -np.inf], np.nan)
+        .dropna()
+    )
     if paired_data.empty:
         return []
 
-    numeric_column = paired_data.iloc[:, 0]
-    categorical_column = paired_data.iloc[:, 1]
-
-    grouped = (
-        paired_data
-        .groupby(categorical_column)[numeric_column.name]
-        .agg(
-            mean="mean",
-            count="count",
-        )
-        .round(2)
+    paired_data["category"] = _collapse_categories(paired_data["category"])
+    grouped = paired_data.groupby("category", sort=False)["numeric"].agg(
+        mean="mean", count="count"
     )
 
     return [
@@ -403,6 +514,11 @@ def generate_chart_data(
     Generates the data required by the frontend
     for the requested chart.
     """
+
+    if chart_type not in SUPPORTED_CHART_TYPES:
+        raise InvalidOperationError(
+            f"Unsupported chart type: '{chart_type}'."
+        )
 
     if column_a not in dataframe.columns:
         raise ColumnNotFoundError(
@@ -509,6 +625,33 @@ def generate_chart_data(
     type_a = detect_column_type(series_a)
     type_b = detect_column_type(series_b)
 
+    if chart_type == "line":
+
+        if {type_a, type_b} != {"datetime", "numeric"}:
+            raise InvalidOperationError(
+                "Line chart requires one datetime and one numeric column."
+            )
+
+        if type_a == "datetime":
+            datetime_series = series_a
+            numeric_series = series_b
+        else:
+            datetime_series = series_b
+            numeric_series = series_a
+
+        data = generate_line_data(
+            datetime_series=datetime_series,
+            numeric_series=numeric_series,
+        )
+
+        return {
+            "chart_type": "line",
+            "title": f"{numeric_series.name} over time",
+            "x_label": str(datetime_series.name),
+            "y_label": str(numeric_series.name),
+            "data": data,
+        }
+
     if chart_type == "scatter":
 
         if (
@@ -535,8 +678,8 @@ def generate_chart_data(
     if chart_type == "heatmap":
 
         if (
-            type_a != "categorical"
-            or type_b != "categorical"
+            type_a not in {"categorical", "boolean"}
+            or type_b not in {"categorical", "boolean"}
         ):
             raise InvalidOperationError(
                 "Heatmap requires two categorical columns."
@@ -559,13 +702,13 @@ def generate_chart_data(
 
         if (
             type_a == "numeric"
-            and type_b == "categorical"
+            and type_b in {"categorical", "boolean"}
         ):
             numeric_series = series_a
             categorical_series = series_b
 
         elif (
-            type_a == "categorical"
+            type_a in {"categorical", "boolean"}
             and type_b == "numeric"
         ):
             numeric_series = series_b
@@ -597,13 +740,13 @@ def generate_chart_data(
 
         if (
             type_a == "numeric"
-            and type_b == "categorical"
+            and type_b in {"categorical", "boolean"}
         ):
             numeric_series = series_a
             categorical_series = series_b
 
         elif (
-            type_a == "categorical"
+            type_a in {"categorical", "boolean"}
             and type_b == "numeric"
         ):
             numeric_series = series_b
@@ -640,42 +783,29 @@ def generate_grouped_boxplot_data(
     numeric_series: pd.Series,
     categorical_series: pd.Series,
 ) -> list[dict]:
-    """
-    Generates box plot statistics for a numeric column
-    grouped by a categorical column.
-    """
+    """Generates bounded box-plot statistics for numeric values by category."""
 
-    paired_data = pd.concat(
-        [numeric_series, categorical_series],
-        axis=1,
-    ).dropna()
-
+    paired_data = pd.DataFrame({
+        "numeric": pd.to_numeric(numeric_series, errors="coerce"),
+        "category": categorical_series,
+    })
+    paired_data = (
+        paired_data
+        .replace([np.inf, -np.inf], np.nan)
+        .dropna()
+    )
     if paired_data.empty:
         return []
 
-    numeric_column = paired_data.iloc[:, 0]
-    categorical_column = paired_data.iloc[:, 1]
-
-    grouped = paired_data.groupby(
-        categorical_column
-    )[numeric_column.name]
-
+    paired_data["category"] = _collapse_categories(paired_data["category"])
     data = []
-
-    for category, values in grouped:
-
-        if values.empty:
-            continue
-
-        data.append(
-            {
-                "category": str(category),
-                "minimum": float(values.min()),
-                "q1": float(values.quantile(0.25)),
-                "median": float(values.median()),
-                "q3": float(values.quantile(0.75)),
-                "maximum": float(values.max()),
-            }
-        )
-
+    for category, values in paired_data.groupby("category", sort=False)["numeric"]:
+        data.append({
+            "category": str(category),
+            "minimum": float(values.min()),
+            "q1": float(values.quantile(0.25)),
+            "median": float(values.median()),
+            "q3": float(values.quantile(0.75)),
+            "maximum": float(values.max()),
+        })
     return data
