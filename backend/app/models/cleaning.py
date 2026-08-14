@@ -49,6 +49,59 @@ class CleaningOperation(BaseModel):
     )
 
 
+class CleaningRecommendation(BaseModel):
+    """
+    Represents one evidence-based cleaning recommendation.
+    """
+
+    column: str | None = Field(
+        default=None,
+        description="Column affected by the issue.",
+    )
+
+    issue: str = Field(
+        ...,
+        min_length=1,
+        description="Detected data quality issue.",
+    )
+
+    count: int = Field(
+        ...,
+        ge=0,
+        description="Number of affected values or records.",
+    )
+
+    percentage: float = Field(
+        ...,
+        ge=0,
+        le=100,
+        description="Percentage of affected values or records.",
+    )
+
+    recommended_operation: str = Field(
+        ...,
+        min_length=1,
+        description="Cleaning operation recommended by the rule engine.",
+    )
+
+    reason: str = Field(
+        ...,
+        min_length=1,
+        description="Evidence-based reason for the recommendation.",
+    )
+
+
+class CleaningRecommendationsResponse(BaseModel):
+    """
+    Collection of cleaning recommendations for a dataset.
+    """
+
+    issues: list[CleaningRecommendation] = Field(
+        default_factory=list,
+        description="Detected cleaning issues and recommendations.",
+    )
+
+    
 class CleaningRequest(BaseModel):
     """
     Represents a requested cleaning operation.

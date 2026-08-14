@@ -40,7 +40,7 @@ def generate_column_summary(
     """
 
     if column_name not in dataframe.columns:
-        raise InvalidColumnError(
+        raise ColumnNotFoundError(
             column_name=column_name
         )
 
@@ -100,7 +100,7 @@ def analyze_column(
     """
 
     if column_name not in dataframe.columns:
-        raise InvalidColumnError(
+        raise ColumnNotFoundError(
             column_name=column_name
         )
 

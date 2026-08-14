@@ -1,10 +1,16 @@
 from app.models.cleaning import (
+    CleaningOperation,
     CleaningRequest,
     CleaningResponse,
+    CleaningRecommendationsResponse
+)
+
+from app.processors.cleaning_processor import (
+    apply_cleaning_operation,
 )
 
 from app.processors.cleaning_analyzer import (
-    apply_cleaning_operation,
+    generate_cleaning_recommendations,
 )
 
 from app.processors.session_manager import get_session
@@ -15,15 +21,14 @@ def apply_cleaning(
     dataset_id: str,
     request: CleaningRequest,
 ) -> CleaningResponse:
-    """
-    Applies a cleaning operation to a dataset session.
-    """
 
     session = get_session(dataset_id)
 
-    cleaned_dataframe, operation = apply_cleaning_operation(
-        dataframe=session.dataframe,
-        request=request,
+    cleaned_dataframe, operation = (
+        apply_cleaning_operation(
+            dataframe=session.dataframe,
+            request=request,
+        )
     )
 
     session.dataframe = cleaned_dataframe
@@ -44,4 +49,18 @@ def apply_cleaning(
         columns=len(cleaned_dataframe.columns),
         is_modified=session.is_modified,
         operation=operation,
+    )
+
+def get_cleaning_recommendations(
+    dataset_id: str,
+) -> CleaningRecommendationsResponse:
+
+    session = get_session(dataset_id)
+
+    recommendations = generate_cleaning_recommendations(
+        dataframe=session.dataframe,
+    )
+
+    return CleaningRecommendationsResponse(
+        issues=recommendations,
     )
