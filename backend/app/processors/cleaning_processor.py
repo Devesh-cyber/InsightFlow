@@ -406,6 +406,65 @@ def fill_missing_mode(
 
     return cleaned_dataframe, operation
 
+def fill_missing_placeholder(
+    dataframe: pd.DataFrame,
+    column_name: str,
+    value: str,
+) -> tuple[pd.DataFrame, CleaningOperation]:
+    """
+    Fill missing values using a user-provided placeholder.
+    """
+
+    if column_name not in dataframe.columns:
+        raise ColumnNotFoundError(
+            column_name=column_name
+        )
+
+    if value.strip() == "":
+        raise InvalidOperationError(
+            "Placeholder value cannot be empty."
+        )
+
+    series = dataframe[column_name]
+
+    missing_count = int(
+        series.isna().sum()
+    )
+
+    if missing_count == 0:
+        operation = CleaningOperation(
+            operation="fill_missing_placeholder",
+            column_name=column_name,
+            method="placeholder",
+            affected_cells=0,
+            reason=(
+                f"No missing values were found "
+                f"in '{column_name}'."
+            ),
+        )
+
+        return dataframe.copy(), operation
+
+    cleaned_dataframe = dataframe.copy()
+
+    cleaned_dataframe[column_name] = (
+        cleaned_dataframe[column_name]
+        .fillna(value)
+    )
+
+    operation = CleaningOperation(
+        operation="fill_missing_placeholder",
+        column_name=column_name,
+        method="placeholder",
+        affected_cells=missing_count,
+        reason=(
+            f"Filled {missing_count} missing value(s) "
+            f"using the placeholder '{value}'."
+        ),
+    )
+
+    return cleaned_dataframe, operation
+
 
 def apply_cleaning_operation(
     dataframe: pd.DataFrame,
@@ -476,6 +535,24 @@ def apply_cleaning_operation(
             column_name=request.column_name,
         )
 
+    if request.operation == "fill_missing_placeholder":
+        if request.column_name is None:
+            raise InvalidOperationError(
+                "column_name is required for placeholder imputation."
+            )
+
+        if request.value is None:
+            raise InvalidOperationError(
+                "value is required for placeholder imputation."
+            )
+
+        return fill_missing_placeholder(
+            dataframe=dataframe,
+            column_name=request.column_name,
+            value=request.value,
+        )
+
     raise InvalidOperationError(
         f"Unsupported cleaning operation: {request.operation}"
     )
+        

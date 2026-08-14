@@ -50,58 +50,75 @@ class CleaningOperation(BaseModel):
 
 
 class CleaningRecommendation(BaseModel):
-    """
-    Represents one evidence-based cleaning recommendation.
-    """
-
-    column: str | None = Field(
-        default=None,
-        description="Column affected by the issue.",
+    column: str = Field(
+        ...,
+        min_length=1,
+        description="Affected column",
     )
 
     issue: str = Field(
         ...,
         min_length=1,
-        description="Detected data quality issue.",
+        description="Detected data quality issue",
     )
 
     count: int = Field(
         ...,
         ge=0,
-        description="Number of affected values or records.",
+        description="Number of affected values",
     )
 
     percentage: float = Field(
         ...,
         ge=0,
         le=100,
-        description="Percentage of affected values or records.",
+        description="Percentage of affected values",
     )
 
-    recommended_operation: str = Field(
+    data_type: str = Field(
         ...,
         min_length=1,
-        description="Cleaning operation recommended by the rule engine.",
+        description="Detected column data type",
+    )
+
+    severity: Literal[
+        "low",
+        "moderate",
+        "high",
+        "very_high",
+        "complete",
+    ]
+
+    suggested_operation: str | None = Field(
+        default=None,
+        description="Evidence-based suggested cleaning operation",
+    )
+
+    available_operations: list[str] = Field(
+        default_factory=list,
+        description="Cleaning operations available to the user",
+    )
+
+    statistics: dict = Field(
+        default_factory=dict,
+        description="Statistics used to support the recommendation",
     )
 
     reason: str = Field(
         ...,
         min_length=1,
-        description="Evidence-based reason for the recommendation.",
+        description="Explanation of the recommendation",
     )
-
 
 class CleaningRecommendationsResponse(BaseModel):
     """
     Collection of cleaning recommendations for a dataset.
     """
 
-    issues: list[CleaningRecommendation] = Field(
-        default_factory=list,
-        description="Detected cleaning issues and recommendations.",
-    )
+    status: str
+    recommendations: list[CleaningRecommendation]
 
-    
+
 class CleaningRequest(BaseModel):
     """
     Represents a requested cleaning operation.
@@ -115,6 +132,7 @@ class CleaningRequest(BaseModel):
         "fill_missing_mean",
         "fill_missing_median",
         "fill_missing_mode",
+        "fill_missing_placeholder",
         "drop_column",
     ]
 
@@ -123,6 +141,10 @@ class CleaningRequest(BaseModel):
         description="Column required for column-specific operations.",
     )
 
+    value: str | None = Field(
+        default=None,
+        description="Value used when filling missing values with a placeholder.",
+    )
 
 class CleaningResponse(BaseModel):
     """
@@ -161,4 +183,41 @@ class CleaningResponse(BaseModel):
     operation: CleaningOperation = Field(
         ...,
         description="Details of the cleaning operation performed.",
+    )
+
+
+class CleaningPreviewResponse(BaseModel):
+    status: str = Field(
+        ...,
+        min_length=1,
+        description="Status of the preview operation.",
+    )
+
+    operation: CleaningOperation = Field(
+        ...,
+        description="Details of the cleaning operation that would be performed.",
+    )
+
+    rows_before: int = Field(
+        ...,
+        ge=0,
+        description="Number of rows before cleaning.",
+    )
+
+    rows_after: int = Field(
+        ...,
+        ge=0,
+        description="Number of rows after the proposed cleaning.",
+    )
+
+    columns_before: int = Field(
+        ...,
+        ge=0,
+        description="Number of columns before cleaning.",
+    )
+
+    columns_after: int = Field(
+        ...,
+        ge=0,
+        description="Number of columns after the proposed cleaning.",
     )

@@ -2,12 +2,14 @@ from fastapi import APIRouter
 
 from app.models.cleaning import (
     CleaningRecommendationsResponse,
+    CleaningPreviewResponse,
     CleaningRequest,
     CleaningResponse,
 )
 
 from app.services.cleaning_service import (
     apply_cleaning,
+    preview_cleaning,
     get_cleaning_recommendations,
 )
 
@@ -37,6 +39,24 @@ async def cleaning_recommendations(
         dataset_id=dataset_id,
     )
 
+@router.post(
+    "/{dataset_id}/preview",
+    response_model=CleaningPreviewResponse,
+    summary="Preview Cleaning Operation",
+)
+async def preview_dataset_cleaning(
+    dataset_id: str,
+    request: CleaningRequest,
+) -> CleaningPreviewResponse:
+    """
+    Preview a user-selected cleaning operation
+    without modifying the dataset.
+    """
+
+    return preview_cleaning(
+        dataset_id=dataset_id,
+        request=request,
+    )
 
 @router.post(
     "/{dataset_id}",

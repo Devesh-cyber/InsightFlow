@@ -2,7 +2,8 @@ from app.models.cleaning import (
     CleaningOperation,
     CleaningRequest,
     CleaningResponse,
-    CleaningRecommendationsResponse
+    CleaningRecommendationsResponse,
+    CleaningPreviewResponse,
 )
 
 from app.processors.cleaning_processor import (
@@ -51,6 +52,29 @@ def apply_cleaning(
         operation=operation,
     )
 
+def preview_cleaning(
+    dataset_id: str,
+    request: CleaningRequest,
+) -> CleaningPreviewResponse:
+
+    session = get_session(dataset_id)
+
+    original_dataframe = session.dataframe
+
+    preview_dataframe, operation = apply_cleaning_operation(
+        dataframe=original_dataframe,
+        request=request,
+    )
+
+    return CleaningPreviewResponse(
+        status="success",
+        operation=operation,
+        rows_before=len(original_dataframe),
+        rows_after=len(preview_dataframe),
+        columns_before=len(original_dataframe.columns),
+        columns_after=len(preview_dataframe.columns),
+    )
+
 def get_cleaning_recommendations(
     dataset_id: str,
 ) -> CleaningRecommendationsResponse:
@@ -62,5 +86,6 @@ def get_cleaning_recommendations(
     )
 
     return CleaningRecommendationsResponse(
-        issues=recommendations,
+        status='success',
+        recommendations=recommendations,
     )
