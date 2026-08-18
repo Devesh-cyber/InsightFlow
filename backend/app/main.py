@@ -9,6 +9,8 @@ from app.api.cleaning import router as cleaning_router
 from app.core.exceptions import InsightFlowException
 from app.api.export import router as export_router
 
+from fastapi.middleware.cors import CORSMiddleware
+
 
 from app.core.exception_handler import (
     insightflow_exception_handler,
@@ -18,6 +20,17 @@ app = FastAPI(
     title='InsightFlow API',
     version='1.0.0',
     description='Backend API for InsightFlow'
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(upload_router)
