@@ -3,6 +3,7 @@ import AppLayout from './layouts/AppLayout';
 import Placeholder from './pages/Placeholder';
 import Upload from './pages/Upload';
 import Overview from './pages/Overview';
+import Health from './pages/Health';
 import { DatasetSessionProvider } from './context/DatasetSessionContext';
 
 function App() {
@@ -14,7 +15,7 @@ function App() {
             <Route path="/" element={<Navigate to="/upload" replace />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/overview" element={<Overview />} />
-            <Route path="/health" element={<Placeholder title="Dataset Health" />} />
+            <Route path="/health" element={<Health />} />
             <Route path="/columns" element={<Placeholder title="Column Explorer" />} />
             <Route path="/relationships" element={<Placeholder title="Feature Relationships" />} />
             <Route path="/visualizations" element={<Placeholder title="Visualizations" />} />
