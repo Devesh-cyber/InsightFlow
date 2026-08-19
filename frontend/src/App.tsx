@@ -4,6 +4,7 @@ import Placeholder from './pages/Placeholder';
 import Upload from './pages/Upload';
 import Overview from './pages/Overview';
 import Health from './pages/Health';
+import Columns from './pages/Columns';
 import { DatasetSessionProvider } from './context/DatasetSessionContext';
 
 function App() {
@@ -16,7 +17,7 @@ function App() {
             <Route path="/upload" element={<Upload />} />
             <Route path="/overview" element={<Overview />} />
             <Route path="/health" element={<Health />} />
-            <Route path="/columns" element={<Placeholder title="Column Explorer" />} />
+            <Route path="/columns" element={<Columns />} />
             <Route path="/relationships" element={<Placeholder title="Feature Relationships" />} />
             <Route path="/visualizations" element={<Placeholder title="Visualizations" />} />
             <Route path="/cleaning" element={<Placeholder title="Cleaning" />} />
