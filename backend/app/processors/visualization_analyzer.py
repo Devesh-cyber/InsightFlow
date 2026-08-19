@@ -343,26 +343,74 @@ def generate_histogram_data(
     return data
 
 
-def generate_boxplot_data(
+MAX_OUTLIERS_PER_GROUP = 1000
+
+
+def _compute_boxplot_stats(
     series: pd.Series,
+    max_outliers: int = MAX_OUTLIERS_PER_GROUP,
 ) -> dict:
     """
-    Generates summary statistics required for a box plot.
+    Computes boxplot statistics (Q1, median, Q3, IQR, fences, whiskers, and capped outliers).
     """
-
     clean_series = pd.to_numeric(series, errors="coerce")
     clean_series = clean_series.replace([np.inf, -np.inf], np.nan).dropna()
 
     if clean_series.empty:
         return {}
 
+    q1 = float(clean_series.quantile(0.25))
+    median = float(clean_series.median())
+    q3 = float(clean_series.quantile(0.75))
+    iqr = q3 - q1
+
+    lower_fence = q1 - 1.5 * iqr
+    upper_fence = q3 + 1.5 * iqr
+
+    non_outliers = clean_series[
+        (clean_series >= lower_fence) & (clean_series <= upper_fence)
+    ]
+
+    if not non_outliers.empty:
+        minimum = float(non_outliers.min())
+        maximum = float(non_outliers.max())
+    else:
+        minimum = q1
+        maximum = q3
+
+    outlier_series = clean_series[
+        (clean_series < lower_fence) | (clean_series > upper_fence)
+    ]
+    total_outliers = len(outlier_series)
+
+    if total_outliers > max_outliers:
+        outliers = [float(v) for v in outlier_series.iloc[:max_outliers]]
+        outliers_truncated = True
+    else:
+        outliers = [float(v) for v in outlier_series]
+        outliers_truncated = False
+
     return {
-        "minimum": float(clean_series.min()),
-        "q1": float(clean_series.quantile(0.25)),
-        "median": float(clean_series.median()),
-        "q3": float(clean_series.quantile(0.75)),
-        "maximum": float(clean_series.max()),
+        "minimum": minimum,
+        "q1": q1,
+        "median": median,
+        "q3": q3,
+        "maximum": maximum,
+        "iqr": iqr,
+        "lower_fence": lower_fence,
+        "upper_fence": upper_fence,
+        "outliers": outliers,
+        "outliers_truncated": outliers_truncated,
     }
+
+
+def generate_boxplot_data(
+    series: pd.Series,
+) -> dict:
+    """
+    Generates summary statistics and outliers required for a box plot.
+    """
+    return _compute_boxplot_stats(series)
 
 
 def generate_bar_data(
@@ -800,12 +848,8 @@ def generate_grouped_boxplot_data(
     paired_data["category"] = _collapse_categories(paired_data["category"])
     data = []
     for category, values in paired_data.groupby("category", sort=False)["numeric"]:
-        data.append({
-            "category": str(category),
-            "minimum": float(values.min()),
-            "q1": float(values.quantile(0.25)),
-            "median": float(values.median()),
-            "q3": float(values.quantile(0.75)),
-            "maximum": float(values.max()),
-        })
+        stats = _compute_boxplot_stats(values)
+        if stats:
+            stats["category"] = str(category)
+            data.append(stats)
     return data
