@@ -1,5 +1,6 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/useAuth';
 import { 
   Upload, 
   LayoutDashboard, 
@@ -9,7 +10,10 @@ import {
   BarChart2, 
   Wand2, 
   History, 
-  Download 
+  Download,
+  LogOut,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 
 const navItems = [
@@ -25,6 +29,29 @@ const navItems = [
 ];
 
 const Sidebar: React.FC = () => {
+  const { signOut, user } = useAuth();
+  const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSignOut = async () => {
+    if (isLoggingOut) return;
+    try {
+      setIsLoggingOut(true);
+      setError(null);
+      await signOut();
+      navigate('/auth');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || 'Failed to sign out. Please try again.');
+      } else {
+        setError('Failed to sign out. Please try again.');
+      }
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   return (
     <aside className="w-64 flex-shrink-0 bg-[var(--color-bg-base)] border-r border-[var(--color-border-strong)] flex flex-col hidden md:flex">
       <div className="h-14 flex items-center px-6 border-b border-[var(--color-border-subtle)]">
@@ -55,6 +82,34 @@ const Sidebar: React.FC = () => {
             </NavLink>
           ))}
         </nav>
+      </div>
+
+      <div className="p-4 border-t border-[var(--color-border-strong)] bg-[var(--color-bg-base)]">
+        <div className="mb-4 px-2">
+          <p className="text-sm font-medium text-[var(--color-text-primary)] truncate" title={user?.email || 'Authenticated User'}>
+            {user?.email || 'Authenticated User'}
+          </p>
+          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Workspace Member</p>
+        </div>
+        
+        {error && (
+          <div className="mb-3 p-2 bg-[var(--color-brand-red)]/10 border border-[var(--color-brand-red)]/20 rounded flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-[var(--color-brand-red)] shrink-0 mt-0.5" />
+            <p className="text-xs text-[var(--color-brand-red)] font-medium leading-relaxed">{error}</p>
+          </div>
+        )}
+        <button
+          onClick={handleSignOut}
+          disabled={isLoggingOut}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm transition-colors text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface)] hover:text-[var(--color-text-primary)] disabled:opacity-50 disabled:cursor-not-allowed border border-transparent hover:border-[var(--color-border-subtle)]"
+        >
+          {isLoggingOut ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <LogOut className="w-4 h-4" />
+          )}
+          <span className="font-sans font-medium">{isLoggingOut ? 'Signing out...' : 'Sign Out'}</span>
+        </button>
       </div>
     </aside>
   );

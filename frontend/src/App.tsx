@@ -10,14 +10,17 @@ import Visualizations from './pages/Visualizations';
 import Cleaning from './pages/Cleaning';
 import CleaningHistory from './pages/CleaningHistory';
 import Export from './pages/Export';
+import Auth from './pages/Auth';
 import { DatasetSessionProvider } from './context/DatasetSessionContext';
 
 function App() {
   return (
     <DatasetSessionProvider>
       <BrowserRouter>
-        <AppLayout>
-          <Routes>
+        <Routes>
+          <Route path="/auth" element={<Auth />} />
+          
+          <Route element={<AppLayout />}>
             <Route path="/" element={<Navigate to="/upload" replace />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/overview" element={<Overview />} />
@@ -29,8 +32,8 @@ function App() {
             <Route path="/cleaning/history" element={<CleaningHistory />} />
             <Route path="/export" element={<Export />} />
             <Route path="*" element={<Placeholder title="404 - Not Found" />} />
-          </Routes>
-        </AppLayout>
+          </Route>
+        </Routes>
       </BrowserRouter>
     </DatasetSessionProvider>
   );
