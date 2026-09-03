@@ -6,3 +6,4 @@ numpy
 scipy
 openpyxl
 python-multipart
+supabase>=2.0.0

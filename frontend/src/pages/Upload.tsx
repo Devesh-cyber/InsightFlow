@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload as UploadIcon, File as FileIcon, X, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload as UploadIcon, File as FileIcon, X, AlertCircle, Loader2, Lock } from 'lucide-react';
 import { PageContainer } from '../components/layout/PageContainer';
 import { SectionHeader } from '../components/layout/SectionHeader';
 import { Panel } from '../components/layout/Panel';
@@ -12,15 +12,25 @@ export default function Upload() {
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { setSession } = useDatasetSession();
 
+  useEffect(() => {
+    const token = localStorage.getItem('supabase_access_token');
+    if (!token) {
+      setIsAuthenticated(false);
+      setError('Authentication required. Please log in to upload and manage datasets.');
+    }
+  }, []);
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(true);
+    if (isAuthenticated) setIsDragging(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
@@ -50,6 +60,7 @@ export default function Upload() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
+    if (!isAuthenticated) return;
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       validateAndSetFile(e.dataTransfer.files[0]);
@@ -65,6 +76,7 @@ export default function Upload() {
   const clearFile = () => {
     setFile(null);
     setError(null);
+    setUploadProgress(0);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -79,13 +91,17 @@ export default function Upload() {
   };
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (!file || !isAuthenticated) return;
     
     setIsUploading(true);
+    setUploadProgress(0);
     setError(null);
     
     try {
-      const response = await uploadDataset(file);
+      const response = await uploadDataset(file, (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || file.size));
+        setUploadProgress(percentCompleted);
+      });
       
       setSession({
         datasetId: response.dataset_id,
@@ -97,7 +113,6 @@ export default function Upload() {
       navigate('/overview');
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response) {
-        // Handle FastAPI HTTPException structure
         const detail = err.response.data.detail;
         setError(typeof detail === 'string' ? detail : 'Validation failed on the server.');
       } else if (err instanceof Error) {
@@ -118,83 +133,113 @@ export default function Upload() {
       />
 
       <Panel className="max-w-3xl">
-        <div 
-          className={`border-2 border-dashed rounded-lg p-10 flex flex-col items-center justify-center transition-colors ${
-            isDragging 
-              ? 'border-[var(--color-brand-blue)] bg-[var(--color-brand-blue)]/5' 
-              : 'border-[var(--color-border-strong)] hover:border-[var(--color-text-muted)] bg-[var(--color-bg-surface)]'
-          } ${file ? 'hidden' : 'flex'}`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <UploadIcon className="w-12 h-12 text-[var(--color-text-muted)] mb-4" />
-          <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-2">Drag and drop your dataset</h3>
-          <p className="text-sm text-[var(--color-text-secondary)] mb-6 font-mono text-center">
-            Supports .csv and .xlsx
+        {!isAuthenticated ? (
+          <div className="p-8 text-center flex flex-col items-center gap-4">
+            <Lock className="w-12 h-12 text-[var(--color-brand-red)]" />
+            <h3 className="text-lg font-medium text-[var(--color-text-primary)]">Session Unauthorized</h3>
+            <p className="text-sm text-[var(--color-text-secondary)]">Please log in to your account to upload and process files securely.</p>
+            <button 
+              onClick={() => navigate('/login')}
+              className="px-6 py-2 bg-[var(--color-brand-blue)] text-white rounded font-medium text-sm transition-colors hover:bg-blue-700"
+            >
+              Go to Login
+            </button>
+          </div>
+        ) : (
+          <>
+            <div 
+              className={`border-2 border-dashed rounded-lg p-10 flex flex-col items-center justify-center transition-colors ${
+                isDragging 
+                  ? 'border-[var(--color-brand-blue)] bg-[var(--color-brand-blue)]/5' 
+                  : 'border-[var(--color-border-strong)] hover:border-[var(--color-text-muted)] bg-[var(--color-bg-surface)]'
+              } ${file ? 'hidden' : 'flex'}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <UploadIcon className="w-12 h-12 text-[var(--color-text-muted)] mb-4" />
+              <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-2">Drag and drop your dataset</h3>
+              <p className="text-sm text-[var(--color-text-secondary)] mb-2 font-mono text-center">
+                Supports .csv and .xlsx (Max 100MB)
+              </p>
+             <p className="text-xs text-[var(--color-text-muted)] font-mono mb-6 text-center">
+            Note: Larger files (&gt;10MB) may take up to a minute to stream and parse.
           </p>
-          
-          <input 
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept=".csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
-            className="hidden"
-          />
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="px-4 py-2 bg-[var(--color-bg-surface-hover)] hover:bg-[var(--color-border-strong)] text-[var(--color-text-primary)] rounded font-medium text-sm transition-colors border border-[var(--color-border-strong)]"
-          >
-            Browse Files
-          </button>
-        </div>
+              <input 
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                className="hidden"
+              />
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="px-4 py-2 bg-[var(--color-bg-surface-hover)] hover:bg-[var(--color-border-strong)] text-[var(--color-text-primary)] rounded font-medium text-sm transition-colors border border-[var(--color-border-strong)]"
+              >
+                Browse Files
+              </button>
+            </div>
 
-        {file && (
-          <div className="flex flex-col gap-6">
-            <div className="flex items-center justify-between p-4 bg-[var(--color-bg-surface-hover)] rounded border border-[var(--color-border-strong)]">
-              <div className="flex items-center gap-4 overflow-hidden">
-                <div className="p-2 bg-[var(--color-bg-base)] rounded text-[var(--color-brand-blue)] shrink-0">
-                  <FileIcon className="w-6 h-6" />
+            {file && (
+              <div className="flex flex-col gap-6">
+                <div className="flex items-center justify-between p-4 bg-[var(--color-bg-surface-hover)] rounded border border-[var(--color-border-strong)]">
+                  <div className="flex items-center gap-4 overflow-hidden">
+                    <div className="p-2 bg-[var(--color-bg-base)] rounded text-[var(--color-brand-blue)] shrink-0">
+                      <FileIcon className="w-6 h-6" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-[var(--color-text-primary)] truncate" title={file.name}>
+                        {file.name}
+                      </p>
+                      <p className="text-xs font-mono text-[var(--color-text-secondary)] mt-0.5">
+                        {formatFileSize(file.size)}
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={clearFile}
+                    disabled={isUploading}
+                    className="p-1.5 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-base)] rounded shrink-0 transition-colors disabled:opacity-50"
+                    aria-label="Remove file"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-[var(--color-text-primary)] truncate" title={file.name}>
-                    {file.name}
-                  </p>
-                  <p className="text-xs font-mono text-[var(--color-text-secondary)] mt-0.5">
-                    {formatFileSize(file.size)}
-                  </p>
+
+                {isUploading && (
+                  <div className="w-full bg-[var(--color-bg-base)] rounded-full h-2.5 overflow-hidden border border-[var(--color-border-strong)]">
+                    <div 
+                      className="bg-[var(--color-brand-blue)] h-2.5 transition-all duration-300" 
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-mono text-[var(--color-text-secondary)]">
+                    {isUploading ? `Uploading progress: ${uploadProgress}%` : ''}
+                  </span>
+                  <button
+                    onClick={handleUpload}
+                    disabled={isUploading}
+                    className="flex items-center gap-2 px-6 py-2 bg-[var(--color-brand-blue)] hover:bg-blue-700 text-white rounded font-medium text-sm transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        {uploadProgress < 100 ? `Uploading (${uploadProgress}%)` : 'Processing Data...'}
+                      </>
+                    ) : (
+                      <>
+                        <UploadIcon className="w-4 h-4" />
+                        Process Dataset
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
-              <button 
-                onClick={clearFile}
-                disabled={isUploading}
-                className="p-1.5 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-base)] rounded shrink-0 transition-colors disabled:opacity-50"
-                aria-label="Remove file"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                onClick={handleUpload}
-                disabled={isUploading}
-                className="flex items-center gap-2 px-6 py-2 bg-[var(--color-brand-blue)] hover:bg-blue-700 text-white rounded font-medium text-sm transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {isUploading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <UploadIcon className="w-4 h-4" />
-                    Process Dataset
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
+            )}
+          </>
         )}
 
         {error && (

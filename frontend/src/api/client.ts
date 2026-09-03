@@ -9,7 +9,19 @@ export const apiClient = axios.create({
   },
 });
 
-// We can add request/response interceptors here for error handling, auth, etc.
+// v2 Injection: Automatically attach Supabase JWT token to requests if it exists
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('supabase_access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Keep your existing v1 response error handler
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {

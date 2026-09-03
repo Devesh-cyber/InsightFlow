@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './layouts/AppLayout';
 import Placeholder from './pages/Placeholder';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import Upload from './pages/Upload';
 import Overview from './pages/Overview';
 import Health from './pages/Health';
@@ -16,21 +18,33 @@ function App() {
   return (
     <DatasetSessionProvider>
       <BrowserRouter>
-        <AppLayout>
-          <Routes>
-            <Route path="/" element={<Navigate to="/upload" replace />} />
-            <Route path="/upload" element={<Upload />} />
-            <Route path="/overview" element={<Overview />} />
-            <Route path="/health" element={<Health />} />
-            <Route path="/columns" element={<Columns />} />
-            <Route path="/relationships" element={<Relationships />} />
-            <Route path="/visualizations" element={<Visualizations />} />
-            <Route path="/cleaning" element={<Cleaning />} />
-            <Route path="/cleaning/history" element={<CleaningHistory />} />
-            <Route path="/export" element={<Export />} />
-            <Route path="*" element={<Placeholder title="404 - Not Found" />} />
-          </Routes>
-        </AppLayout>
+        <Routes>
+          {/* Public Authentication Routes (Rendered outside AppLayout if they don't need the sidebar) */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+          {/* Protected App Routes wrapped in AppLayout */}
+          <Route
+            path="/*"
+            element={
+              <AppLayout>
+                <Routes>
+                  <Route path="/" element={<Navigate to="/upload" replace />} />
+                  <Route path="/upload" element={<Upload />} />
+                  <Route path="/overview" element={<Overview />} />
+                  <Route path="/health" element={<Health />} />
+                  <Route path="/columns" element={<Columns />} />
+                  <Route path="/relationships" element={<Relationships />} />
+                  <Route path="/visualizations" element={<Visualizations />} />
+                  <Route path="/cleaning" element={<Cleaning />} />
+                  <Route path="/cleaning/history" element={<CleaningHistory />} />
+                  <Route path="/export" element={<Export />} />
+                  <Route path="*" element={<Placeholder title="404 - Not Found" />} />
+                </Routes>
+              </AppLayout>
+            }
+          />
+        </Routes>
       </BrowserRouter>
     </DatasetSessionProvider>
   );

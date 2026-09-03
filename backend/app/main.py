@@ -8,7 +8,7 @@ from app.api.visualization import router as visualization_router
 from app.api.cleaning import router as cleaning_router
 from app.core.exceptions import InsightFlowException
 from app.api.export import router as export_router
-
+from app.api.auth import router as auth_router
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -46,7 +46,7 @@ app.add_exception_handler(
     InsightFlowException,
     insightflow_exception_handler,
 )
-
+app.include_router(auth_router)
 
 @app.get('/')
 def root():
