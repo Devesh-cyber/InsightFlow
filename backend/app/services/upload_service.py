@@ -7,11 +7,16 @@ from app.services.supabase_client import supabase
 async def upload_dataset(file: UploadFile, user) -> UploadResponse:
     ''' Uploads and processes a dataset with user isolation and Supabase storage '''
     try:
+        # Safely extract user ID whether 'user' is an object or a dictionary
+        user_id = getattr(user, "id", None) or (user.get("id") if isinstance(user, dict) else None)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid user session context.")
+
         # 1. Read file contents into memory safely
         contents = await file.read()
         
         # 2. Stream raw file bytes to Supabase Storage Bucket ('datasets')
-        storage_path = f"{user.id}/{file.filename}"
+        storage_path = f"{user_id}/{file.filename}"
         
         supabase.storage.from_("datasets").upload(
             path=storage_path,
@@ -21,7 +26,7 @@ async def upload_dataset(file: UploadFile, user) -> UploadResponse:
         
         # 3. Save metadata record to PostgreSQL 'datasets' table
         supabase.table("datasets").insert({
-            "user_id": user.id,
+            "user_id": user_id,
             "file_name": file.filename,
             "storage_path": storage_path
         }).execute()

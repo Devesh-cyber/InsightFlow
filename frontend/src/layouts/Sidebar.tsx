@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   Upload, 
@@ -10,7 +10,8 @@ import {
   Wand2, 
   History, 
   Download,
-  LogOut
+  LogOut,
+  User
 } from 'lucide-react';
 import { logoutUser } from '../api/auth';
 
@@ -28,9 +29,18 @@ const navItems = [
 
 const Sidebar: React.FC = () => {
   const navigate = useNavigate();
+  const [userEmail, setUserEmail] = useState<string>('user@example.com');
+
+  useEffect(() => {
+    const storedEmail = localStorage.getItem('supabase_user_email');
+    if (storedEmail) {
+      setUserEmail(storedEmail);
+    }
+  }, []);
 
   const handleLogout = () => {
-    logoutUser(); // Clears 'supabase_access_token' from localStorage
+    logoutUser();
+    localStorage.removeItem('supabase_user_email');
     navigate('/login');
   };
 
@@ -67,8 +77,15 @@ const Sidebar: React.FC = () => {
           </nav>
         </div>
 
-        {/* Sign Out Action at Bottom */}
-        <div className="px-3 pt-4 border-t border-[var(--color-border-subtle)]">
+        {/* User Profile & Sign Out Footer */}
+        <div className="px-3 pt-4 border-t border-[var(--color-border-subtle)] flex flex-col gap-2">
+          <div className="flex items-center gap-2 px-3 py-2 rounded bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] overflow-hidden">
+            <User className="w-4 h-4 text-[var(--color-brand-blue)] shrink-0" />
+            <span className="text-xs font-mono text-[var(--color-text-primary)] truncate" title={userEmail}>
+              {userEmail}
+            </span>
+          </div>
+
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 w-full px-3 py-2 rounded text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-brand-red)]/10 hover:text-[var(--color-brand-red)] transition-colors focus:outline-none"
