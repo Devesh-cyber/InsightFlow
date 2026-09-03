@@ -7,3 +7,4 @@ scipy
 openpyxl
 python-multipart
 supabase>=2.0.0
+email-validator>=2.0.0
