@@ -22,3 +22,9 @@ dist/
 # OS
 .DS_Store
 *.pyc
+
+*.csv
+*.html
+*.xls
+
+Profiling\ Projects/    
