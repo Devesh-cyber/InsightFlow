@@ -27,7 +27,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-        "https://insight-flow-lemon-phi.vercel.app"
+        "https://insight-flow-lemon-phi.vercel.app",
+        "https://insight-flow-devesh06.vercel.app"  # Add your current Vercel domain here
     ],
     allow_credentials=True,
     allow_methods=["*"],
