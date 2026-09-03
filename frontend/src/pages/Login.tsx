@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogIn, AlertCircle, Loader2 } from 'lucide-react';
-import { PageContainer } from '../components/layout/PageContainer';
-import { SectionHeader } from '../components/layout/SectionHeader';
 import { Panel } from '../components/layout/Panel';
 import { loginUser } from '../api/auth';
 import axios from 'axios';
