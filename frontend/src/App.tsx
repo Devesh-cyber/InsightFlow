@@ -18,20 +18,26 @@ import { supabase } from './api/client';
 
 function App() {
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const handleAuthSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session?.access_token) {
         localStorage.setItem('supabase_access_token', session.access_token);
         localStorage.setItem('supabase_user_email', session.user?.email || '');
+        window.dispatchEvent(new Event('storage'));
       }
-    });
+    };
+
+    handleAuthSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.access_token) {
         localStorage.setItem('supabase_access_token', session.access_token);
         localStorage.setItem('supabase_user_email', session.user?.email || '');
+        window.dispatchEvent(new Event('storage'));
       } else {
         localStorage.removeItem('supabase_access_token');
         localStorage.removeItem('supabase_user_email');
+        window.dispatchEvent(new Event('storage'));
       }
     });
 
