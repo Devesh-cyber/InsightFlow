@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './layouts/AppLayout';
 import Placeholder from './pages/Placeholder';
@@ -13,8 +14,30 @@ import Cleaning from './pages/Cleaning';
 import CleaningHistory from './pages/CleaningHistory';
 import Export from './pages/Export';
 import { DatasetSessionProvider } from './context/DatasetSessionContext';
+import { supabase } from './api/client';
 
 function App() {
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.access_token) {
+        localStorage.setItem('supabase_access_token', session.access_token);
+        localStorage.setItem('supabase_user_email', session.user?.email || '');
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.access_token) {
+        localStorage.setItem('supabase_access_token', session.access_token);
+        localStorage.setItem('supabase_user_email', session.user?.email || '');
+      } else {
+        localStorage.removeItem('supabase_access_token');
+        localStorage.removeItem('supabase_user_email');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   return (
     <DatasetSessionProvider>
       <BrowserRouter>
