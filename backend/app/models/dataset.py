@@ -40,6 +40,12 @@ class DatasetSession(BaseModel):
         description="Unique session identifier"
     )
 
+    user_id: str = Field(
+        ...,
+        min_length=1,
+        description="ID of the user who owns this dataset session"
+    )
+
     filename: str = Field(
         ...,
         min_length=1,

@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.models.dataset import DatasetMetadata
 from app.processors.session_manager import create_session
+from tests.conftest import DEFAULT_TEST_USER_ID as TEST_USER_ID
 
 client = TestClient(app)
 
@@ -22,7 +23,7 @@ def test_boxplot_numeric_with_known_outliers():
         duplicate_rows=0,
         column_types={"int64": 1},
     )
-    session = create_session("outlier_test.csv", df, meta)
+    session = create_session("outlier_test.csv", df, meta, user_id=TEST_USER_ID)
 
     res = client.get(
         f"/visualizations/{session.dataset_id}/data?column_a=val&chart_type=boxplot"
@@ -65,7 +66,7 @@ def test_boxplot_numeric_no_outliers():
         duplicate_rows=0,
         column_types={"int64": 1},
     )
-    session = create_session("no_outliers.csv", df, meta)
+    session = create_session("no_outliers.csv", df, meta, user_id=TEST_USER_ID)
 
     res = client.get(
         f"/visualizations/{session.dataset_id}/data?column_a=score&chart_type=boxplot"
@@ -94,7 +95,7 @@ def test_grouped_boxplot_with_outliers():
         duplicate_rows=0,
         column_types={"int64": 1, "object": 1},
     )
-    session = create_session("grouped_outliers.csv", df, meta)
+    session = create_session("grouped_outliers.csv", df, meta, user_id=TEST_USER_ID)
 
     res = client.get(
         f"/visualizations/{session.dataset_id}/data?column_a=salary&column_b=dept&chart_type=boxplot"
@@ -123,7 +124,7 @@ def test_boxplot_identical_values_zero_iqr():
         duplicate_rows=0,
         column_types={"int64": 1},
     )
-    session = create_session("const.csv", df, meta)
+    session = create_session("const.csv", df, meta, user_id=TEST_USER_ID)
 
     res = client.get(
         f"/visualizations/{session.dataset_id}/data?column_a=const&chart_type=boxplot"
@@ -153,7 +154,7 @@ def test_boxplot_nan_and_inf_handling():
         duplicate_rows=0,
         column_types={"float64": 1},
     )
-    session = create_session("nan_inf.csv", df, meta)
+    session = create_session("nan_inf.csv", df, meta, user_id=TEST_USER_ID)
 
     res = client.get(
         f"/visualizations/{session.dataset_id}/data?column_a=mixed&chart_type=boxplot"
@@ -183,7 +184,7 @@ def test_boxplot_large_dataset_performance_and_truncation():
         duplicate_rows=0,
         column_types={"float64": 1},
     )
-    session = create_session("large.csv", df, meta)
+    session = create_session("large.csv", df, meta, user_id=TEST_USER_ID)
 
     res = client.get(
         f"/visualizations/{session.dataset_id}/data?column_a=large_num&chart_type=boxplot"

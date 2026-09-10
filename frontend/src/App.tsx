@@ -1,7 +1,9 @@
-import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import AppLayout from './layouts/AppLayout';
-import Placeholder from './pages/Placeholder';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { DatasetProvider, useDataset } from './context/DatasetContext';
+import { ProtectedRoute } from './components/layout/ProtectedRoute';
+import { RequiresDataset } from './components/layout/RequiresDataset';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Upload from './pages/Upload';
@@ -13,70 +15,115 @@ import Visualizations from './pages/Visualizations';
 import Cleaning from './pages/Cleaning';
 import CleaningHistory from './pages/CleaningHistory';
 import Export from './pages/Export';
-import { DatasetSessionProvider } from './context/DatasetSessionContext';
-import { supabase } from './api/client';
 
-function App() {
-  useEffect(() => {
-    const handleAuthSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        localStorage.setItem('supabase_access_token', session.access_token);
-        localStorage.setItem('supabase_user_email', session.user?.email || '');
-        window.dispatchEvent(new Event('storage'));
-      }
-    };
-
-    handleAuthSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.access_token) {
-        localStorage.setItem('supabase_access_token', session.access_token);
-        localStorage.setItem('supabase_user_email', session.user?.email || '');
-        window.dispatchEvent(new Event('storage'));
-      } else {
-        localStorage.removeItem('supabase_access_token');
-        localStorage.removeItem('supabase_user_email');
-        window.dispatchEvent(new Event('storage'));
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  return (
-    <DatasetSessionProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public Authentication Routes (Rendered outside AppLayout if they don't need the sidebar) */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-
-          {/* Protected App Routes wrapped in AppLayout */}
-          <Route
-            path="/*"
-            element={
-              <AppLayout>
-                <Routes>
-                  <Route path="/" element={<Navigate to="/upload" replace />} />
-                  <Route path="/upload" element={<Upload />} />
-                  <Route path="/overview" element={<Overview />} />
-                  <Route path="/health" element={<Health />} />
-                  <Route path="/columns" element={<Columns />} />
-                  <Route path="/relationships" element={<Relationships />} />
-                  <Route path="/visualizations" element={<Visualizations />} />
-                  <Route path="/cleaning" element={<Cleaning />} />
-                  <Route path="/cleaning/history" element={<CleaningHistory />} />
-                  <Route path="/export" element={<Export />} />
-                  <Route path="*" element={<Placeholder title="404 - Not Found" />} />
-                </Routes>
-              </AppLayout>
-            }
-          />
-        </Routes>
-      </BrowserRouter>
-    </DatasetSessionProvider>
-  );
+function IndexRedirect() {
+  const { dataset } = useDataset();
+  return <Navigate to={dataset ? '/overview' : '/upload'} replace />;
 }
 
-export default App;
+function PublicOnlyRoute({ children }: { children: ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (isAuthenticated) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <DatasetProvider>
+          <Routes>
+            <Route
+              path="/login"
+              element={
+                <PublicOnlyRoute>
+                  <Login />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/register"
+              element={
+                <PublicOnlyRoute>
+                  <Register />
+                </PublicOnlyRoute>
+              }
+            />
+
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<IndexRedirect />} />
+              <Route path="/upload" element={<Upload />} />
+              <Route
+                path="/overview"
+                element={
+                  <RequiresDataset>
+                    <Overview />
+                  </RequiresDataset>
+                }
+              />
+              <Route
+                path="/health"
+                element={
+                  <RequiresDataset>
+                    <Health />
+                  </RequiresDataset>
+                }
+              />
+              <Route
+                path="/columns"
+                element={
+                  <RequiresDataset>
+                    <Columns />
+                  </RequiresDataset>
+                }
+              />
+              <Route
+                path="/relationships"
+                element={
+                  <RequiresDataset>
+                    <Relationships />
+                  </RequiresDataset>
+                }
+              />
+              <Route
+                path="/visualizations"
+                element={
+                  <RequiresDataset>
+                    <Visualizations />
+                  </RequiresDataset>
+                }
+              />
+              <Route
+                path="/cleaning"
+                element={
+                  <RequiresDataset>
+                    <Cleaning />
+                  </RequiresDataset>
+                }
+              />
+              <Route
+                path="/cleaning/history"
+                element={
+                  <RequiresDataset>
+                    <CleaningHistory />
+                  </RequiresDataset>
+                }
+              />
+              <Route
+                path="/export"
+                element={
+                  <RequiresDataset>
+                    <Export />
+                  </RequiresDataset>
+                }
+              />
+            </Route>
+
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </DatasetProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}

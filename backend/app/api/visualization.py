@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 
 from app.models.visualization import (
     ChartData,
@@ -9,6 +9,7 @@ from app.services.visualization_service import (
     get_chart_data,
     get_visualization_options_for_dataset,
 )
+from app.core.deps import get_current_user
 
 
 router = APIRouter(
@@ -26,6 +27,7 @@ async def get_options(
     dataset_id: str,
     column_a: str = Query(...),
     column_b: str | None = Query(default=None),
+    user = Depends(get_current_user),
 ) -> VisualizationOptions:
     """
     Returns visualization types that are valid
@@ -36,6 +38,7 @@ async def get_options(
         dataset_id=dataset_id,
         column_a=column_a,
         column_b=column_b,
+        user=user,
     )
 
 
@@ -49,6 +52,7 @@ async def get_visualization_data(
     column_a: str = Query(...),
     chart_type: str = Query(...),
     column_b: str | None = Query(default=None),
+    user = Depends(get_current_user),
 ) -> ChartData:
     """
     Generates structured data required by the frontend
@@ -60,4 +64,5 @@ async def get_visualization_data(
         column_a=column_a,
         column_b=column_b,
         chart_type=chart_type,
+        user=user,
     )

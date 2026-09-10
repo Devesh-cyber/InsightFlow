@@ -1,7 +1,7 @@
 {
-  "name": "frontend",
+  "name": "insightflow-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,10 +13,10 @@
     "@supabase/supabase-js": "^2.115.0",
     "axios": "^1.19.0",
     "lucide-react": "^1.31.0",
-    "plotly.js": "^3.7.0",
+    "plotly.js": "^2.34.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-plotly.js": "^4.1.0",
+    "react-plotly.js": "^2.6.0",
     "react-router-dom": "^7.18.2"
   },
   "devDependencies": {

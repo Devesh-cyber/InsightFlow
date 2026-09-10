@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.models.export import ExportRequest
 from app.services.export_service import export_dataset
+from app.core.deps import get_current_user
 
 
 router = APIRouter(
@@ -17,6 +18,7 @@ router = APIRouter(
 async def export(
     dataset_id: str,
     request: ExportRequest,
+    user = Depends(get_current_user),
 ):
     """
     Export the current dataset in CSV or XLSX format.
@@ -25,4 +27,5 @@ async def export(
     return export_dataset(
         dataset_id=dataset_id,
         request=request,
+        user=user,
     )

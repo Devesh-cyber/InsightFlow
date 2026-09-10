@@ -5,17 +5,20 @@ from fastapi.responses import StreamingResponse
 from app.core.exceptions import InvalidOperationError
 from app.models.export import ExportRequest
 from app.processors.session_manager import get_session
+from app.core.deps import get_user_id
 
 
 def export_dataset(
     dataset_id: str,
     request: ExportRequest,
+    user,
 ) -> StreamingResponse:
     """
-    Exports the current dataset session in the requested format.
+    Exports the current dataset session in the requested format,
+    scoped to its owner.
     """
 
-    session = get_session(dataset_id)
+    session = get_session(dataset_id, get_user_id(user))
 
     dataframe = session.dataframe
 

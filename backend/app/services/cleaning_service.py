@@ -17,14 +17,16 @@ from app.processors.cleaning_analyzer import (
 
 from app.processors.session_manager import get_session
 from app.processors.metadata import generate_metadata
+from app.core.deps import get_user_id
 
 
 def apply_cleaning(
     dataset_id: str,
     request: CleaningRequest,
+    user,
 ) -> CleaningResponse:
 
-    session = get_session(dataset_id)
+    session = get_session(dataset_id, get_user_id(user))
 
     cleaned_dataframe, operation = (
         apply_cleaning_operation(
@@ -56,9 +58,10 @@ def apply_cleaning(
 def preview_cleaning(
     dataset_id: str,
     request: CleaningRequest,
+    user,
 ) -> CleaningPreviewResponse:
 
-    session = get_session(dataset_id)
+    session = get_session(dataset_id, get_user_id(user))
 
     original_dataframe = session.dataframe
 
@@ -78,9 +81,10 @@ def preview_cleaning(
 
 def get_cleaning_recommendations(
     dataset_id: str,
+    user,
 ) -> CleaningRecommendationsResponse:
 
-    session = get_session(dataset_id)
+    session = get_session(dataset_id, get_user_id(user))
 
     recommendations = generate_cleaning_recommendations(
         dataframe=session.dataframe,
@@ -91,8 +95,8 @@ def get_cleaning_recommendations(
         recommendations=recommendations,
     )
 
-def get_cleaning_history(dataset_id: str) -> CleaningHistoryResponse:
-    session = get_session(dataset_id)
+def get_cleaning_history(dataset_id: str, user) -> CleaningHistoryResponse:
+    session = get_session(dataset_id, get_user_id(user))
 
     return CleaningHistoryResponse(
         status="success",
